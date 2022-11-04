@@ -169,6 +169,7 @@ public class CveScanner {
             this.updateInterval = updateInterval;
         }
         updateCves();
+        updateGraalVMCves();
     }
 
 
@@ -179,7 +180,7 @@ public class CveScanner {
         if (cvedbOpenJDK.exists()) {
             final Instant now = Instant.now();
             if (Duration.between(Instant.ofEpochMilli(cvedbOpenJDK.lastModified()), now).toHours() < updateInterval) {
-                loadCvesFromFile(CVE_DB_FILENAME);
+                loadCvesFromFile();
             } else {
                 CVES.clear();
                 CVES.addAll(getLatestCves());
@@ -201,7 +202,7 @@ public class CveScanner {
         if (cvedbGraalVM.exists()) {
             final Instant now = Instant.now();
             if (Duration.between(Instant.ofEpochMilli(cvedbGraalVM.lastModified()), now).toHours() < updateInterval) {
-                loadCvesFromFile(CVE_DB_GRAALVM_FILENAME);
+                loadGraalVMCvesFromFile();
             } else {
                 GRAALVM_CVES.clear();
                 GRAALVM_CVES.addAll(getLatestGraalVMCves());
@@ -634,10 +635,10 @@ public class CveScanner {
         });
     }
 
-    private void loadCvesFromFile(final String FILENAME) {
+    private void loadCvesFromFile() {
         final List<CVE> cvesFound = new ArrayList<>();
         try {
-            final String jsonText = new String(Files.readAllBytes(Paths.get(FILENAME)));
+            final String jsonText = new String(Files.readAllBytes(Paths.get(CVE_DB_FILENAME)));
             Gson gson = new GsonBuilder().create();
             if (null != jsonText || !jsonText.isEmpty()) {
                 final JsonArray cveArray = gson.fromJson(jsonText, JsonArray.class);
@@ -661,6 +662,36 @@ public class CveScanner {
         if (cvesFound.isEmpty()) { return; }
         CVES.clear();
         CVES.addAll(cvesFound);
+        fireCveEvt(UPDATED);
+    }
+
+    private void loadGraalVMCvesFromFile() {
+        final List<CVE> cvesFound = new ArrayList<>();
+        try {
+            final String jsonText = new String(Files.readAllBytes(Paths.get(CVE_DB_GRAALVM_FILENAME)));
+            Gson gson = new GsonBuilder().create();
+            if (null != jsonText || !jsonText.isEmpty()) {
+                final JsonArray cveArray = gson.fromJson(jsonText, JsonArray.class);
+                for (int i = 0 ; i < cveArray.size() ; i++) {
+                    final JsonObject json = cveArray.get(i).getAsJsonObject();
+                    if (json.has(CVE.FIELD_ID)) {
+                        final String    id       = json.get(CVE.FIELD_ID).getAsString();
+                        final double    score    = json.get(CVE.FIELD_SCORE).getAsDouble();
+                        final Severity  severity = Severity.fromText(json.get(CVE.FIELD_SEVERITY).getAsString());
+                        final JsonArray versions = json.get(CVE.FIELD_AFFECTED_VERSIONS).getAsJsonArray();
+                        final List<String> affectedVersions = new ArrayList<>();
+                        for (int j = 0 ; j < versions.size() ; j++) {
+                            affectedVersions.add(versions.get(j).getAsString());
+                        }
+                        cvesFound.add(new CVE(id, score, severity, affectedVersions));
+                    }
+                }
+            }
+        } catch (IOException e) { fireCveEvt(ERROR); }
+
+        if (cvesFound.isEmpty()) { return; }
+        GRAALVM_CVES.clear();
+        GRAALVM_CVES.addAll(cvesFound);
         fireCveEvt(UPDATED);
     }
 
