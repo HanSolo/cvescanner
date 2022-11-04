@@ -16,6 +16,7 @@ public class Main {
         });
 
         cveScanner.updateCves();
+        cveScanner.updateGraalVMCves();
         while(running.get()) {
             try {
                 Thread.sleep(100);

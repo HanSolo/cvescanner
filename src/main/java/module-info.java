@@ -3,7 +3,5 @@ module eu.hansolo.cvescanner {
     requires java.net.http;
     requires transitive com.google.gson;
 
-    opens com.google.gson;
-
     exports eu.hansolo.cvescanner;
 }
