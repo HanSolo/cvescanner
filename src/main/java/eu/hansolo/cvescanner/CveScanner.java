@@ -60,20 +60,24 @@ public class CveScanner {
 
     public enum CveEvtType { UPDATED, ERROR }
     public enum Severity {
-        LOW("LOW", "LOW"),
-        MEDIUM("MEDIUM", "MEDIUM"),
-        HIGH("HIGH", "HIGH"),
-        CRITICAL("CRITICAL", "CRITICAL"),
-        NONE("-", ""),
-        NOT_FOUND("", "");
+        LOW("LOW", "LOW", 0.1, 3.9),
+        MEDIUM("MEDIUM", "MEDIUM", 4.0, 6.9),
+        HIGH("HIGH", "HIGH", 7.0, 8.9),
+        CRITICAL("CRITICAL", "CRITICAL", 9.0, 10.0),
+        NONE("-", "", 0, 0),
+        NOT_FOUND("", "", 0, 0);
 
         private final String uiString;
         private final String apiString;
+        private final double minScore;
+        private final double maxScore;
 
 
-        Severity(final String uiString, final String apiString) {
+        Severity(final String uiString, final String apiString, final double minScore, final double maxScore) {
             this.uiString  = uiString;
             this.apiString = apiString;
+            this.minScore  = minScore;
+            this.maxScore  = maxScore;
         }
 
 
