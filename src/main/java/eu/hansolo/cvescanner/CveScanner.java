@@ -224,6 +224,7 @@ public class CveScanner {
             } else {
                 GRAALVM_CVES.clear();
                 GRAALVM_CVES.addAll(getLatestCves(true));
+                cvedbGraalVM.delete();
                 final StringBuilder jsonBuilder = new StringBuilder().append(GRAALVM_CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
                 saveToJsonFile(CVE_DB_GRAALVM_FILENAME, jsonBuilder.toString());
                 fireCveEvt(UPDATED);
