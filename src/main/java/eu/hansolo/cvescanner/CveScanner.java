@@ -201,6 +201,7 @@ public class CveScanner {
             } else {
                 CVES.clear();
                 CVES.addAll(getLatestCves(false));
+                cvedbOpenJDK.delete();
                 final StringBuilder jsonBuilder = new StringBuilder().append(CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
                 saveToJsonFile(CVE_DB_FILENAME, jsonBuilder.toString());
                 fireCveEvt(UPDATED);
