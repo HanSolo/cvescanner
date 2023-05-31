@@ -86,9 +86,12 @@ public class CveScanner {
         }
     }
     public final void updateGraalVMCves() {
+        updateGraalVMCves(false);
+    }
+    public final void updateGraalVMCves(final boolean force) {
         // Update CVE's related to GraalVM
         final File cvedbGraalVM = new File(CVE_DB_GRAALVM_FILENAME);
-        if (cvedbGraalVM.exists()) {
+        if (!force && cvedbGraalVM.exists()) {
             final Instant now = Instant.now();
             if (Duration.between(Instant.ofEpochMilli(cvedbGraalVM.lastModified()), now).toHours() < updateInterval) {
                 loadGraalVMCvesFromFile();

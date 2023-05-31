@@ -22,8 +22,8 @@ public class Main {
             running.set(false);
         });
 
-        cveScanner.updateCves();
-        cveScanner.updateGraalVMCves();
+        cveScanner.updateCves(true);
+        cveScanner.updateGraalVMCves(true);
         while(running.get()) {
             try {
                 Thread.sleep(100);
