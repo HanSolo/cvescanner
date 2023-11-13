@@ -122,11 +122,12 @@ public class CveScanner {
     }
 
     private List<CVE> getLatestCves(final boolean graalVmOnly) {
-        final List<CVE> cvesOpenJDK = getLatestCves(NVD_URL_OPENJDK, graalVmOnly);
-        final List<CVE> cvesJDK     = getLatestCves(NVD_URL_JDK, graalVmOnly);
-        final List<CVE> cvesJRE     = getLatestCves(NVD_URL_JRE, graalVmOnly);
-        final List<CVE> cvesJavaSE  = getLatestCves(NVD_URL_JAVASE, graalVmOnly);
-        final List<CVE> cvesGraalVM = getLatestCves(NVD_URL_GRAALVM, graalVmOnly);
+        final List<CVE> cvesOpenJDK       = getLatestCves(NVD_URL_OPENJDK, graalVmOnly);
+        final List<CVE> cvesJDK           = getLatestCves(NVD_URL_JDK, graalVmOnly);
+        final List<CVE> cvesJRE           = getLatestCves(NVD_URL_JRE, graalVmOnly);
+        final List<CVE> cvesJavaSE        = getLatestCves(NVD_URL_JAVASE, graalVmOnly);
+        final List<CVE> cvesGraalVM       = getLatestCves(NVD_URL_GRAALVM, graalVmOnly);
+        final List<CVE> cvesGraalVMForJDK = getLatestCves(NVD_URL_GRAALVM_FOR_JDK, graalVmOnly);
 
         final Map<String, List<String>> cveMap      = new HashMap<>();
         final Map<String, Double>       scoreMap    = new HashMap<>();
@@ -169,6 +170,19 @@ public class CveScanner {
 
         // Merge cve's found affecting JavaSE with map
         cvesJavaSE.forEach(cve -> {
+            if (cveMap.containsKey(cve.id())) {
+                List<String> combined = Stream.concat(cve.affectedVersions().stream(), cveMap.get(cve.id()).stream()).distinct().collect(Collectors.toList());
+                cveMap.put(cve.id(), combined);
+            } else {
+                cveMap.put(cve.id(), cve.affectedVersions());
+                scoreMap.put(cve.id(), cve.score());
+                severityMap.put(cve.id(), cve.severity());
+                cvssMap.put(cve.id(), cve.cvss());
+            }
+        });
+
+        // Merge cve's found affecting GraalVM for JDK with map
+        cvesGraalVMForJDK.forEach(cve -> {
             if (cveMap.containsKey(cve.id())) {
                 List<String> combined = Stream.concat(cve.affectedVersions().stream(), cveMap.get(cve.id()).stream()).distinct().collect(Collectors.toList());
                 cveMap.put(cve.id(), combined);

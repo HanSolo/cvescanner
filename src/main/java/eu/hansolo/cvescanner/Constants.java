@@ -13,6 +13,7 @@ public class Constants {
     public static final String NVD_URL_JRE             = "https://services.nvd.nist.gov/rest/json/cves/1.0/?cpeMatchString=cpe:2.3:a:oracle:jre:*:*:*:*:*:*:*:*&resultsPerPage=2000&apiKey=9a4bd31c-f084-4353-b3e5-6f1cc219410c";
     public static final String NVD_URL_JAVASE          = "https://services.nvd.nist.gov/rest/json/cves/1.0/?cpeMatchString=cpe:2.3:a:oracle:java_se:*:*:*:*:*:*:*:*&resultsPerPage=2000&apiKey=9a4bd31c-f084-4353-b3e5-6f1cc219410c";
     public static final String NVD_URL_GRAALVM         = "https://services.nvd.nist.gov/rest/json/cves/1.0/?cpeMatchString=cpe:2.3:a:oracle:graalvm:*:*:*:*:*:*:*:*&resultsPerPage=2000&apiKey=9a4bd31c-f084-4353-b3e5-6f1cc219410c";
+    public static final String NVD_URL_GRAALVM_FOR_JDK = "https://services.nvd.nist.gov/rest/json/cves/1.0/?cpeMatchString=cpe:2.3:a:oracle:graalvm_for_jdk:*:*:*:*:*:*:*:*&resultsPerPage=2000&apiKey=9a4bd31c-f084-4353-b3e5-6f1cc219410c";
     public static final String NVD_URL_JAR             = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:*:$NAME:$VERSION:*:*:*:*:*:*:*&resultsPerPage=100&noRejected";
     public static final String CVE_BASE_URL            = "http://cve.mitre.org/cgi-bin/cvename.cgi?name=";
     public static final String HOME_FOLDER             = new StringBuilder(System.getProperty("user.home")).append(File.separator).toString();
