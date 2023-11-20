@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import eu.hansolo.jdktools.versioning.VersionNumber;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,6 +21,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -122,186 +124,247 @@ public class CveScanner {
     }
 
     private List<CVE> getLatestCves(final boolean graalVmOnly) {
-        final List<CVE> cvesOpenJDK       = getLatestCves(NVD_URL_OPENJDK, graalVmOnly);
-        final List<CVE> cvesJDK           = getLatestCves(NVD_URL_JDK, graalVmOnly);
-        final List<CVE> cvesJRE           = getLatestCves(NVD_URL_JRE, graalVmOnly);
-        final List<CVE> cvesJavaSE        = getLatestCves(NVD_URL_JAVASE, graalVmOnly);
-        final List<CVE> cvesGraalVM       = getLatestCves(NVD_URL_GRAALVM, graalVmOnly);
-        final List<CVE> cvesGraalVMForJDK = getLatestCves(NVD_URL_GRAALVM_FOR_JDK, graalVmOnly);
+        final Map<String, List<VersionNumber>> cveMap      = new HashMap<>();
+        final Map<String, Double>              scoreMap    = new HashMap<>();
+        final Map<String, Severity>            severityMap = new HashMap<>();
+        final Map<String, CVSS>                cvssMap     = new HashMap<>();
 
-        final Map<String, List<String>> cveMap      = new HashMap<>();
-        final Map<String, Double>       scoreMap    = new HashMap<>();
-        final Map<String, Severity>     severityMap = new HashMap<>();
-        final Map<String, CVSS>         cvssMap     = new HashMap<>();
+        if (graalVmOnly) {
+            final List<CVE> cvesGraalVM       = getLatestCves(NVD_URL_GRAALVM_V2, graalVmOnly);
+            final List<CVE> cvesGraalVMForJDK = getLatestCves(NVD_URL_GRAALVM_FOR_JDK_V2, graalVmOnly);
 
-        // Add cve's found affecting OpenJDK to map
-        cvesOpenJDK.forEach(cve -> {
-            cveMap.put(cve.id(), cve.affectedVersions());
-            scoreMap.put(cve.id(), cve.score());
-            severityMap.put(cve.id(), cve.severity());
-            cvssMap.put(cve.id(), cve.cvss());
-        });
-
-        // Merge cve's found affecting JDK's with map
-        cvesJDK.forEach(cve -> {
-            if (cveMap.containsKey(cve.id())) {
-                List<String> combined = Stream.concat(cve.affectedVersions().stream(), cveMap.get(cve.id()).stream()).distinct().collect(Collectors.toList());
-                cveMap.put(cve.id(), combined);
-            } else {
+            // Add cve's found affecting GraalVM to map
+            cvesGraalVM.forEach(cve -> {
                 cveMap.put(cve.id(), cve.affectedVersions());
                 scoreMap.put(cve.id(), cve.score());
                 severityMap.put(cve.id(), cve.severity());
                 cvssMap.put(cve.id(), cve.cvss());
-            }
-        });
+            });
 
-        // Merge cve's found affecting JRE's with map
-        cvesJRE.forEach(cve -> {
-            if (cveMap.containsKey(cve.id())) {
-                List<String> combined = Stream.concat(cve.affectedVersions().stream(), cveMap.get(cve.id()).stream()).distinct().collect(Collectors.toList());
-                cveMap.put(cve.id(), combined);
-            } else {
+            // Merge cve's found affecting GraalVM for JDK with map
+            cvesGraalVMForJDK.forEach(cve -> {
+                if (cveMap.containsKey(cve.id())) {
+                    final List<VersionNumber> combined = Stream.concat(cve.affectedVersions().stream(), cveMap.get(cve.id()).stream()).distinct().collect(Collectors.toList());
+                    cveMap.put(cve.id(), combined);
+                } else {
+                    cveMap.put(cve.id(), cve.affectedVersions());
+                    scoreMap.put(cve.id(), cve.score());
+                    severityMap.put(cve.id(), cve.severity());
+                    cvssMap.put(cve.id(), cve.cvss());
+                }
+            });
+        } else {
+            final List<CVE> cvesOpenJDK = getLatestCves(NVD_URL_OPENJDK_V2, graalVmOnly);
+            final List<CVE> cvesJDK     = getLatestCves(NVD_URL_JDK_V2, graalVmOnly);
+            final List<CVE> cvesJRE     = getLatestCves(NVD_URL_JRE_V2, graalVmOnly);
+            final List<CVE> cvesJavaSE  = getLatestCves(NVD_URL_JAVASE_V2, graalVmOnly);
+
+            // Add cve's found affecting OpenJDK to map
+            cvesOpenJDK.forEach(cve -> {
                 cveMap.put(cve.id(), cve.affectedVersions());
                 scoreMap.put(cve.id(), cve.score());
                 severityMap.put(cve.id(), cve.severity());
                 cvssMap.put(cve.id(), cve.cvss());
-            }
-        });
+            });
 
-        // Merge cve's found affecting JavaSE with map
-        cvesJavaSE.forEach(cve -> {
-            if (cveMap.containsKey(cve.id())) {
-                List<String> combined = Stream.concat(cve.affectedVersions().stream(), cveMap.get(cve.id()).stream()).distinct().collect(Collectors.toList());
-                cveMap.put(cve.id(), combined);
-            } else {
-                cveMap.put(cve.id(), cve.affectedVersions());
-                scoreMap.put(cve.id(), cve.score());
-                severityMap.put(cve.id(), cve.severity());
-                cvssMap.put(cve.id(), cve.cvss());
-            }
-        });
+            // Merge cve's found affecting JDK's with map
+            cvesJDK.forEach(cve -> {
+                if (cveMap.containsKey(cve.id())) {
+                    final List<VersionNumber> combined = Stream.concat(cve.affectedVersions().stream(), cveMap.get(cve.id()).stream()).distinct().collect(Collectors.toList());
+                    cveMap.put(cve.id(), combined);
+                } else {
+                    cveMap.put(cve.id(), cve.affectedVersions());
+                    scoreMap.put(cve.id(), cve.score());
+                    severityMap.put(cve.id(), cve.severity());
+                    cvssMap.put(cve.id(), cve.cvss());
+                }
+            });
 
-        // Merge cve's found affecting GraalVM for JDK with map
-        cvesGraalVMForJDK.forEach(cve -> {
-            if (cveMap.containsKey(cve.id())) {
-                List<String> combined = Stream.concat(cve.affectedVersions().stream(), cveMap.get(cve.id()).stream()).distinct().collect(Collectors.toList());
-                cveMap.put(cve.id(), combined);
-            } else {
-                cveMap.put(cve.id(), cve.affectedVersions());
-                scoreMap.put(cve.id(), cve.score());
-                severityMap.put(cve.id(), cve.severity());
-                cvssMap.put(cve.id(), cve.cvss());
-            }
-        });
+            // Merge cve's found affecting JRE's with map
+            cvesJRE.forEach(cve -> {
+                if (cveMap.containsKey(cve.id())) {
+                    final List<VersionNumber> combined = Stream.concat(cve.affectedVersions().stream(), cveMap.get(cve.id()).stream()).distinct().collect(Collectors.toList());
+                    cveMap.put(cve.id(), combined);
+                } else {
+                    cveMap.put(cve.id(), cve.affectedVersions());
+                    scoreMap.put(cve.id(), cve.score());
+                    severityMap.put(cve.id(), cve.severity());
+                    cvssMap.put(cve.id(), cve.cvss());
+                }
+            });
 
-        return cveMap.entrySet().stream().map(entry -> new CVE(entry.getKey(), scoreMap.get(entry.getKey()), cvssMap.get(entry.getKey()), severityMap.get(entry.getKey()), entry.getValue())).collect(Collectors.toList());
+            // Merge cve's found affecting JavaSE with map
+            cvesJavaSE.forEach(cve -> {
+                if (cveMap.containsKey(cve.id())) {
+                    final List<VersionNumber> combined = Stream.concat(cve.affectedVersions().stream(), cveMap.get(cve.id()).stream()).distinct().collect(Collectors.toList());
+                    cveMap.put(cve.id(), combined);
+                } else {
+                    cveMap.put(cve.id(), cve.affectedVersions());
+                    scoreMap.put(cve.id(), cve.score());
+                    severityMap.put(cve.id(), cve.severity());
+                    cvssMap.put(cve.id(), cve.cvss());
+                }
+            });
+        }
+
+        return cveMap.entrySet()
+                     .stream()
+                     .map(entry -> new CVE(entry.getKey(), scoreMap.get(entry.getKey()), cvssMap.get(entry.getKey()), severityMap.get(entry.getKey()), entry.getValue()))
+                     .collect(Collectors.toList()).stream().sorted(Comparator.comparing(CVE::id)).collect(Collectors.toList());
     }
     private List<CVE> getLatestCves(final String url, final boolean graalvmOnly) {
         final List<CVE>            cvesFound = new ArrayList<>();
-        final HttpResponse<String> response  = get(url);
+        final HttpResponse<String> response  = get(url, Map.of("apiKey", "9a4bd31c-f084-4353-b3e5-6f1cc219410c"));
         if (null == response) { return cvesFound; }
-        final String      bodyText = response.body();
-        final Gson        gson     = new Gson();
-        final JsonElement element  = gson.fromJson(bodyText, JsonElement.class);
-        if (element instanceof JsonObject) {
-            final JsonObject jsonObj     = element.getAsJsonObject();
-            final JsonObject resultObj   = jsonObj.get("result").getAsJsonObject();
-            final JsonArray  cveItemsArr = resultObj.get("CVE_Items").getAsJsonArray();
-            for (int i = 0 ; i < cveItemsArr.size() ; i++) {
-                final JsonObject cveItem        = cveItemsArr.get(i).getAsJsonObject();
-                final JsonObject cveObj         = cveItem.get("cve").getAsJsonObject();
-                final JsonObject cveMetaData    = cveObj.get("CVE_data_meta").getAsJsonObject();
-                final String     id             = cveMetaData.get("ID").getAsString();
-                final JsonObject configurations = cveItem.get("configurations").getAsJsonObject();
-                final JsonArray  nodes          = configurations.get("nodes").getAsJsonArray();
-                Map<String, List<String>> cpesFound = new HashMap<>();
-                for (int j = 0 ; j < nodes.size() ; j++) {
-                    JsonObject node = nodes.get(j).getAsJsonObject();
-                    JsonArray  cpeMatch = node.get("cpe_match").getAsJsonArray();
-                    for (int k = 0 ; k < cpeMatch.size() ; k++) {
-                        JsonObject match      = cpeMatch.get(k).getAsJsonObject();
-                        boolean    vulnerable = match.get("vulnerable").getAsBoolean();
-                        String     cpe23Uri   = match.get("cpe23Uri").getAsString();
-                        if (vulnerable && cpe23Uri.startsWith("cpe:2.3:a:oracle:")) {
-                            String parts[];
-                            if (graalvmOnly) {
-                                if (cpe23Uri.startsWith("cpe:2.3:a:oracle:graalvm:")) {
-                                    parts = cpe23Uri.replace("cpe:2.3:a:oracle:graalvm:", "").split(":");
-                                } else {
-                                    parts = new String[] {};
-                                }
-                            } else {
-                                if (cpe23Uri.startsWith("cpe:2.3:a:oracle:openjdk:")) {
-                                    parts = cpe23Uri.replace("cpe:2.3:a:oracle:openjdk:", "").split(":");
-                                } else if (cpe23Uri.startsWith("cpe:2.3:a:oracle:jdk:")) {
-                                    parts = cpe23Uri.replace("cpe:2.3:a:oracle:jdk:", "").split(":");
-                                } else if (cpe23Uri.startsWith("cpe:2.3:a:oracle:jdk:")) {
-                                    parts = cpe23Uri.replace("cpe:2.3:a:oracle:jre:", "").split(":");
-                                } else if (cpe23Uri.startsWith("cpe:2.3:a:oracle:java_se:")) {
-                                    parts = cpe23Uri.replace("cpe:2.3:a:oracle:java_se:", "").split(":");
-                                } else {
-                                    parts = new String[] {};
-                                }
-                            }
-                            if (parts.length == 0) { continue; }
+        final String bodyText = response.body();
+        final Gson   gson     = new GsonBuilder().setLenient().create();
+        try {
+            final JsonElement element = gson.fromJson(bodyText, JsonElement.class);
+            // ***** NVD API V2 *****
+            if (element instanceof JsonObject) {
+                        final JsonObject jsonObj         = element.getAsJsonObject();
+                        final JsonArray  vulnerabilities = jsonObj.get("vulnerabilities").getAsJsonArray();
+                        for (int i = 0 ; i < vulnerabilities.size() ; i++) {
+                            final JsonObject cveItem     = vulnerabilities.get(i).getAsJsonObject();
+                            final JsonObject cveObj      = cveItem.get("cve").getAsJsonObject();
+                            final String     id          = cveObj.get("id").getAsString();
+                            final JsonArray  configArray = cveObj.get("configurations").getAsJsonArray();
+                            if (configArray.size() > 0) {
+                                Map<String, List<String>> cpesFound = new HashMap<>();
+                                for (int c = 0 ; c < configArray.size() ; c++) {
+                                    final JsonObject configuration = configArray.get(c).getAsJsonObject();
+                                    if (configuration.has("nodes")) {
+                                        final JsonArray  nodesArray    = configuration.get("nodes").getAsJsonArray();
+                                        for (int k = 0 ; k < nodesArray.size() ; k++) {
+                                            JsonObject nodes = nodesArray.get(k).getAsJsonObject();
+                                            JsonArray  cpeMatch = nodes.get("cpeMatch").getAsJsonArray();
+                                            for (int l = 0 ; l < cpeMatch.size() ; l++) {
+                                                JsonObject match      = cpeMatch.get(l).getAsJsonObject();
+                                                boolean    vulnerable = match.get("vulnerable").getAsBoolean();
+                                                String     criteria   = match.get("criteria").getAsString();
+                                                if (vulnerable && criteria.startsWith("cpe:2.3:a:oracle:")) {
+                                                    String[] parts;
+                                                    if (graalvmOnly) {
+                                                        if (criteria.startsWith("cpe:2.3:a:oracle:graalvm:")) {
+                                                            parts = criteria.replace("cpe:2.3:a:oracle:graalvm:", "").split(":");
+                                                        } else if (criteria.startsWith("cpe:2.3:a:oracle:graalvm_for_jdk:")) {
+                                                            parts = criteria.replace("cpe:2.3:a:oracle:graalvm_for_jdk:", "").split(":");
+                                                        } else {
+                                                            parts = new String[] {};
+                                                        }
+                                                    } else {
+                                                        if (criteria.startsWith("cpe:2.3:a:oracle:openjdk:")) {
+                                                            parts = criteria.replace("cpe:2.3:a:oracle:openjdk:", "").split(":");
+                                                        } else if (criteria.startsWith("cpe:2.3:a:oracle:jdk:")) {
+                                                            parts = criteria.replace("cpe:2.3:a:oracle:jdk:", "").split(":");
+                                                        } else if (criteria.startsWith("cpe:2.3:a:oracle:jre:")) {
+                                                            parts = criteria.replace("cpe:2.3:a:oracle:jre:", "").split(":");
+                                                        } else if (criteria.startsWith("cpe:2.3:a:oracle:java_se:")) {
+                                                            parts = criteria.replace("cpe:2.3:a:oracle:java_se:", "").split(":");
+                                                        } else {
+                                                            parts = new String[] {};
+                                                        }
+                                                    }
 
-                            String version = parts[0];
-                            if (version.equals("*")) { continue; }
-                            if (parts[1].startsWith("update")) {
-                                if (parts[1].startsWith("update_0")) {
-                                    version += parts[1].replace("update_0", ".0.");
-                                } else if (parts[1].startsWith("update_")) {
-                                    version += parts[1].replace("update_", ".0.");
-                                } else {
-                                    version += parts[1].replace("update", ".0.");
+                                                    if (parts.length == 0) { continue; }
+
+                                                    String version = parts[0];
+                                                    if (version.equals("*")) { continue; }
+                                                    if (parts[1].startsWith("update")) {
+                                                        if (parts[1].startsWith("update_0")) {
+                                                            version += parts[1].replace("update_0", ".0.");
+                                                        } else if (parts[1].startsWith("update_")) {
+                                                            version += parts[1].replace("update_", ".0.");
+                                                        } else {
+                                                            version += parts[1].replace("update", ".0.");
+                                                        }
+                                                        if (!cpesFound.containsKey(id)) { cpesFound.put(id, new ArrayList<>()); }
+                                                        version = version.replace("1.2", "2");
+                                                        version = version.replace("1.3", "3");
+                                                        version = version.replace("1.4", "4");
+                                                        version = version.replace("1.5", "5");
+                                                        version = version.replace("1.6", "6");
+                                                        version = version.replace("1.7", "7");
+                                                        version = version.replace("1.8", "8");
+                                                        version = version.replace("1.9", "9");
+                                                        version = version.replace(".0.0.", ".0.");
+                                                        version = version.replace("_b", "+");
+
+                                                        if (!cpesFound.get(id).contains(version) && !version.equals("-")) { cpesFound.get(id).add(version); }
+                                                    } else {
+                                                        if (!cpesFound.containsKey(id)) { cpesFound.put(id, new ArrayList<>()); }
+                                                        version = version.replace("1.2", "2");
+                                                        version = version.replace("1.3", "3");
+                                                        version = version.replace("1.4", "4");
+                                                        version = version.replace("1.5", "5");
+                                                        version = version.replace("1.6", "6");
+                                                        version = version.replace("1.7", "7");
+                                                        version = version.replace("1.8", "8");
+                                                        version = version.replace("1.9", "9");
+                                                        version = version.replace(".0.0", "");
+                                                        version = version.replace("_b", "+");
+
+                                                        if (!cpesFound.get(id).contains(version) && !version.equals("-")) { cpesFound.get(id).add(version); }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-                                if (!cpesFound.containsKey(id)) { cpesFound.put(id, new ArrayList<>()); }
-                                version = version.replace("1.6", "6");
-                                version = version.replace("1.7", "7");
-                                version = version.replace("1.8", "8");
-                                version = version.replace("1.9", "9");
-                                version = version.replace(".0.0.", ".0.");
-                                version = version.replace("_b", "+");
 
-                                if (!cpesFound.get(id).contains(version) && !version.equals("-")) { cpesFound.get(id).add(version); }
-                            } else {
-                                if (!cpesFound.containsKey(id)) { cpesFound.put(id, new ArrayList<>()); }
-                                version = version.replace("1.6", "6");
-                                version = version.replace("1.7", "7");
-                                version = version.replace("1.8", "8");
-                                version = version.replace("1.9", "9");
-                                version = version.replace(".0.0", "");
-                                version = version.replace("_b", "+");
+                                final JsonObject metrics = cveObj.get("metrics").getAsJsonObject();
+                                double   scoreFound    = -1;
+                                Severity severityFound = Severity.NONE;
+                                CVSS     cvssFound     = CVSS.NOT_FOUND;
+                                if (metrics.has(CVSS.CVSSV40.getMetricString())) {
+                                    cvssFound = CVSS.CVSSV40;
+                                    final JsonArray metricsArray = metrics.getAsJsonArray(CVSS.CVSSV40.getMetricString());
+                                    if (metricsArray.size() > 0) {
+                                        final JsonObject metricsObj  = metricsArray.get(0).getAsJsonObject();
+                                        final JsonObject cvssDataObj = metricsObj.getAsJsonObject("cvssData");
+                                        scoreFound    = cvssDataObj.get("baseScore").getAsDouble();
+                                        severityFound = Severity.fromText(cvssDataObj.get("baseSeverity").getAsString());
+                                    }
+                                } else if (metrics.has(CVSS.CVSSV31.getMetricString())) {
+                                    cvssFound = CVSS.CVSSV31;
+                                    final JsonArray metricsArray = metrics.getAsJsonArray(CVSS.CVSSV31.getMetricString());
+                                    if (metricsArray.size() > 0) {
+                                        final JsonObject metricsObj  = metricsArray.get(0).getAsJsonObject();
+                                        final JsonObject cvssDataObj = metricsObj.getAsJsonObject("cvssData");
+                                        scoreFound    = cvssDataObj.get("baseScore").getAsDouble();
+                                        severityFound = Severity.fromText(cvssDataObj.get("baseSeverity").getAsString());
+                                    }
+                                } else if (metrics.has(CVSS.CVSSV30.getMetricString())) {
+                                    cvssFound = CVSS.CVSSV30;
+                                    final JsonArray metricsArray = metrics.getAsJsonArray(CVSS.CVSSV30.getMetricString());
+                                    if (metricsArray.size() > 0) {
+                                        final JsonObject metricsObj  = metricsArray.get(0).getAsJsonObject();
+                                        final JsonObject cvssDataObj = metricsObj.getAsJsonObject("cvssData");
+                                        scoreFound    = cvssDataObj.get("baseScore").getAsDouble();
+                                        severityFound = Severity.fromText(cvssDataObj.get("baseSeverity").getAsString());
+                                    }
+                                } else if (metrics.has(CVSS.CVSSV2.getMetricString())) {
+                                    cvssFound = CVSS.CVSSV2;
+                                    final JsonArray metricsArray = metrics.getAsJsonArray(CVSS.CVSSV2.getMetricString());
+                                    if (metricsArray.size() > 0) {
+                                        final JsonObject metricsObj  = metricsArray.get(0).getAsJsonObject();
+                                        final JsonObject cvssDataObj = metricsObj.getAsJsonObject("cvssData");
+                                        scoreFound    = cvssDataObj.get("baseScore").getAsDouble();
+                                        severityFound = Severity.fromText(metricsObj.get("baseSeverity").getAsString());
+                                    }
+                                }
 
-                                if (!cpesFound.get(id).contains(version) && !version.equals("-")) { cpesFound.get(id).add(version); }
+                                if (!cpesFound.isEmpty() && scoreFound > 0 && severityFound != Severity.NONE) {
+                                    List<VersionNumber> versionsFound = new ArrayList<>();
+                                    cpesFound.values().forEach(versions -> versions.forEach(version -> versionsFound.add(VersionNumber.fromText(version))));
+                                    List<VersionNumber> sortedVersions = versionsFound.stream().sorted(Comparator.naturalOrder()).collect(Collectors.toList());
+                                    cvesFound.add(new CVE(id, scoreFound, cvssFound, severityFound, sortedVersions));
+                                }
                             }
                         }
                     }
-                }
-                final JsonObject impact = cveItem.get("impact").getAsJsonObject();
-                double score = -1;
-                Severity severity = Severity.NONE;
-                CVSS     cvss     = CVSS.NOT_FOUND;
-                if (impact.has("baseMetricV3")) {
-                    final JsonObject baseMetricV3 = impact.get("baseMetricV3").getAsJsonObject();
-                    final JsonObject cvssV3       = baseMetricV3.get("cvssV3").getAsJsonObject();
-                    severity = Severity.fromText(cvssV3.get("baseSeverity").getAsString());
-                    score    = cvssV3.get("baseScore").getAsDouble();
-                    cvss     = CVSS.CVSSV3;
-                } else if (impact.has("baseMetricV2")) {
-                    final JsonObject baseMetricV2 = impact.get("baseMetricV2").getAsJsonObject();
-                    final JsonObject cvssV2       = baseMetricV2.get("cvssV2").getAsJsonObject();
-                    severity = Severity.fromText(baseMetricV2.get("severity").getAsString());
-                    score    = cvssV2.get("baseScore").getAsDouble();
-                    cvss     = CVSS.CVSSV2;
-                }
+        } catch (Exception e) {
 
-                if (!cpesFound.isEmpty() && score > 0 && severity != Severity.NONE) {
-                    List<String> versionsFound = new ArrayList<>();
-                    cpesFound.values().forEach(versions -> versionsFound.addAll(versions));
-                    cvesFound.add(new CVE(id, score, cvss, severity, versionsFound));
-                }
-            }
         }
         return cvesFound;
     }
@@ -310,7 +373,7 @@ public class CveScanner {
         final List<CVE> cvesFound = new ArrayList<>();
         try {
             final String jsonText = new String(Files.readAllBytes(Paths.get(CVE_DB_FILENAME)));
-            Gson gson = new GsonBuilder().create();
+            Gson gson = new GsonBuilder().setLenient().create();
             if (null != jsonText || !jsonText.isEmpty()) {
                 final JsonArray cveArray = gson.fromJson(jsonText, JsonArray.class);
                 for (int i = 0 ; i < cveArray.size() ; i++) {
@@ -325,11 +388,11 @@ public class CveScanner {
                         final CVSS      cvss     = CVSS.fromText(json.get(CVE.FIELD_CVSS).getAsString());
                         final Severity  severity = Severity.fromText(json.get(CVE.FIELD_SEVERITY).getAsString());
                         final JsonArray versions = json.get(CVE.FIELD_AFFECTED_VERSIONS).getAsJsonArray();
-                        final List<String> affectedVersions = new ArrayList<>();
+                        final List<VersionNumber> affectedVersions = new ArrayList<>();
                         for (int j = 0 ; j < versions.size() ; j++) {
                             final String version = versions.get(j).getAsString();
                             if (!version.equals("-")) {
-                                affectedVersions.add(version);
+                                affectedVersions.add(VersionNumber.fromText(version));
                             }
                         }
                         cvesFound.add(new CVE(id, score, cvss, severity, affectedVersions));
@@ -348,7 +411,7 @@ public class CveScanner {
         final List<CVE> cvesFound = new ArrayList<>();
         try {
             final String jsonText = new String(Files.readAllBytes(Paths.get(CVE_DB_GRAALVM_FILENAME)));
-            Gson gson = new GsonBuilder().create();
+            Gson gson = new GsonBuilder().setLenient().create();
             if (null != jsonText || !jsonText.isEmpty()) {
                 final JsonArray cveArray = gson.fromJson(jsonText, JsonArray.class);
                 for (int i = 0 ; i < cveArray.size() ; i++) {
@@ -363,11 +426,11 @@ public class CveScanner {
                         final CVSS      cvss     = CVSS.fromText(json.get(CVE.FIELD_CVSS).getAsString());
                         final Severity  severity = Severity.fromText(json.get(CVE.FIELD_SEVERITY).getAsString());
                         final JsonArray versions = json.get(CVE.FIELD_AFFECTED_VERSIONS).getAsJsonArray();
-                        final List<String> affectedVersions = new ArrayList<>();
+                        final List<VersionNumber> affectedVersions = new ArrayList<>();
                         for (int j = 0 ; j < versions.size() ; j++) {
                             final String version = versions.get(j).getAsString();
                             if (!version.equals("-")) {
-                                affectedVersions.add(version);
+                                affectedVersions.add(VersionNumber.fromText(version));
                             }
                         }
                         cvesFound.add(new CVE(id, score, cvss, severity, affectedVersions));
@@ -431,12 +494,9 @@ public class CveScanner {
                 return response;
             } else {
                 // Problem with url request
-                //System.out.println("Error executing get request " + uri);
-                //System.out.println("Response (Status Code " + response.statusCode()  + ")  " + response.body());
                 return response;
             }
         } catch (CompletionException | InterruptedException | IOException e) {
-            //System.out.println("Error executing get request " + uri + " : " + e.getMessage());
             fireCveEvt(ERROR);
             return null;
         }

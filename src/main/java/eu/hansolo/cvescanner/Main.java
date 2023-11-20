@@ -14,13 +14,15 @@ public class Main {
 
         AtomicBoolean running    = new AtomicBoolean(true);
         CveScanner    cveScanner = new CveScanner(3);
+
         cveScanner.addCveEvtConsumer(e -> {
             switch(e.type()) {
-                case UPDATED -> System.out.println(cveScanner.getCves());
+                case UPDATED -> System.out.println("Updated"); //System.out.println(cveScanner.getCves(api));
                 case ERROR   -> System.out.println("Error getting CVEs");
             }
             running.set(false);
         });
+
 
         cveScanner.updateCves(true);
         cveScanner.updateGraalVMCves(true);
