@@ -6,7 +6,6 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 
 public class Constants {
@@ -32,7 +31,7 @@ public class Constants {
 
 
     // ******************** Enums *********************************************
-    public enum CveEvtType { UPDATED, ERROR }
+    public enum CveEvtType { UPDATED_OPENJDK, UPDATED_GRAALVM, ERROR }
 
     public enum CVSS {
         CVSSV2("CVSS 2.0", "cvss_20", "cvssMetricV2"),
@@ -64,11 +63,11 @@ public class Constants {
         public static CVSS fromText(final String text) {
             if (null == text) { return NOT_FOUND; }
             switch (text) {
-                case "CVSSV2", "cvssV2", "cvssv2", "CVSSV20", "cvssV20", "cvssv20", "cvssMetricV2"  -> { return CVSSV2; }
-                case "CVSSV3", "cvssV3", "cvssv3", "CVSSV30", "cvssV30", "cvssv30", "cvssMetricV30" -> { return CVSSV30; }
-                case "CVSSV31", "cvssV31", "cvssv31", "cvssMetricV31"                               -> { return CVSSV31; }
-                case "CVSSV4", "cvssV4", "cvssv4", "CVSSV40", "cvssV40", "cvssv40", "cvssMetricV40" -> { return CVSSV40; }
-                default                                                                             -> { return NOT_FOUND; }
+                case "cvss_20", "CVSSV2", "cvssV2", "cvssv2", "CVSSV20", "cvssV20", "cvssv20", "cvssMetricV2"  -> { return CVSSV2; }
+                case "cvss_30", "CVSSV3", "cvssV3", "cvssv3", "CVSSV30", "cvssV30", "cvssv30", "cvssMetricV30" -> { return CVSSV30; }
+                case "cvss_31", "CVSSV31", "cvssV31", "cvssv31", "cvssMetricV31"                               -> { return CVSSV31; }
+                case "cvss_40", "CVSSV4", "cvssV4", "cvssv4", "CVSSV40", "cvssV40", "cvssv40", "cvssMetricV40" -> { return CVSSV40; }
+                default                                                                                        -> { return NOT_FOUND; }
             }
         }
 
@@ -197,22 +196,7 @@ public class Constants {
                         return Severity.NOT_FOUND;
                     }
                 }
-                case CVSSV30 -> {
-                    if (score <= 0) {
-                        return Severity.NONE;
-                    } else if (score > 0 && score <= 3.9) {
-                        return Severity.LOW;
-                    } else if (score > 3.9 && score <= 6.9) {
-                        return Severity.MEDIUM;
-                    } else if (score > 6.9 && score < 8.9) {
-                        return Severity.HIGH;
-                    } else if (score > 8.9 && score <= 10.0) {
-                        return Severity.CRITICAL;
-                    } else {
-                        return Severity.NOT_FOUND;
-                    }
-                }
-                case CVSSV40 -> {
+                case CVSSV30, CVSSV31, CVSSV40 -> {
                     if (score <= 0) {
                         return Severity.NONE;
                     } else if (score > 0 && score <= 3.9) {
@@ -257,7 +241,7 @@ public class Constants {
             msgBuilder.append(CURLY_BRACKET_OPEN)
                       .append(QUOTES).append(FIELD_ID).append(QUOTES).append(COLON).append(QUOTES).append(id).append(QUOTES).append(COMMA)
                       .append(QUOTES).append(FIELD_SCORE).append(QUOTES).append(COLON).append(score).append(COMMA)
-                      .append(QUOTES).append(FIELD_CVSS).append(QUOTES).append(COLON).append(QUOTES).append(cvss.getApiString()).append(QUOTES).append(COMMA)
+                      .append(QUOTES).append(FIELD_CVSS).append(QUOTES).append(COLON).append(QUOTES).append(cvss.apiString).append(QUOTES).append(COMMA)
                       .append(QUOTES).append(FIELD_SEVERITY).append(QUOTES).append(COLON).append(QUOTES).append(severity.getApiString()).append(QUOTES).append(COMMA)
                       .append(QUOTES).append(FIELD_URL).append(QUOTES).append(COLON).append(QUOTES).append(url()).append(QUOTES).append(COMMA)
                       .append(QUOTES).append(FIELD_AFFECTED_VERSIONS).append(QUOTES).append(COLON)

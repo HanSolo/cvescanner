@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -36,11 +37,13 @@ import static eu.hansolo.cvescanner.Constants.*;
 
 
 public class CveScanner {
-    private final CveEvt               UPDATED      = new CveEvt(CveEvtType.UPDATED);
-    private final CveEvt               ERROR        = new CveEvt(CveEvtType.ERROR);
-    private final List<CVE>            CVES         = new CopyOnWriteArrayList<>();
-    private final List<CVE>            GRAALVM_CVES = new CopyOnWriteArrayList<>();
-    private final List<CveEvtConsumer> consumers    = new CopyOnWriteArrayList<>();
+    private final Properties           PROPERTIES      = PropertyManager.INSTANCE.getProperties();
+    private final CveEvt               UPDATED_OPENJDK = new CveEvt(CveEvtType.UPDATED_OPENJDK);
+    private final CveEvt               UPDATED_GRAALVM = new CveEvt(CveEvtType.UPDATED_GRAALVM);
+    private final CveEvt               ERROR           = new CveEvt(CveEvtType.ERROR);
+    private final List<CVE>            CVES            = new CopyOnWriteArrayList<>();
+    private final List<CVE>            GRAALVM_CVES    = new CopyOnWriteArrayList<>();
+    private final List<CveEvtConsumer> consumers       = new CopyOnWriteArrayList<>();
     private final int                  updateInterval;
     private       HttpClient           httpClient;
     private       HttpClient           httpClientAsync;
@@ -77,14 +80,14 @@ public class CveScanner {
                 cvedbOpenJDK.delete();
                 final StringBuilder jsonBuilder = new StringBuilder().append(CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
                 saveToJsonFile(CVE_DB_FILENAME, jsonBuilder.toString());
-                fireCveEvt(UPDATED);
+                fireCveEvt(UPDATED_OPENJDK);
             }
         } else {
             CVES.clear();
             CVES.addAll(getLatestCves(false));
             final StringBuilder jsonBuilder = new StringBuilder().append(CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
             saveToJsonFile(CVE_DB_FILENAME, jsonBuilder.toString());
-            fireCveEvt(UPDATED);
+            fireCveEvt(UPDATED_OPENJDK);
         }
     }
     public final void updateGraalVMCves() {
@@ -103,14 +106,14 @@ public class CveScanner {
                 cvedbGraalVM.delete();
                 final StringBuilder jsonBuilder = new StringBuilder().append(GRAALVM_CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
                 saveToJsonFile(CVE_DB_GRAALVM_FILENAME, jsonBuilder.toString());
-                fireCveEvt(UPDATED);
+                fireCveEvt(UPDATED_GRAALVM);
             }
         } else {
             GRAALVM_CVES.clear();
             GRAALVM_CVES.addAll(getLatestCves(true));
             final StringBuilder jsonBuilder = new StringBuilder().append(GRAALVM_CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
             saveToJsonFile(CVE_DB_GRAALVM_FILENAME, jsonBuilder.toString());
-            fireCveEvt(UPDATED);
+            fireCveEvt(UPDATED_GRAALVM);
         }
     }
 
@@ -123,7 +126,17 @@ public class CveScanner {
         return GRAALVM_CVES;
     }
 
+    public final List<CVE> findCvesForVersion(final VersionNumber version) {
+        return getCves().stream().filter(cve -> cve.affectedVersions().contains(version)).toList();
+    }
+    public final List<CVE> findGraalVMCvesForVersion(final VersionNumber version) {
+        return getGraalVMCves().stream().filter(cve -> cve.affectedVersions().contains(version)).toList();
+    }
+
     private List<CVE> getLatestCves(final boolean graalVmOnly) {
+        if (null == PROPERTIES.get(PropertyManager.PROPERTY_NVD_API_KEY) || PROPERTIES.get(PropertyManager.PROPERTY_NVD_API_KEY).toString().isEmpty()) {
+            throw new IllegalArgumentException("NVD API Key cannot be empty");
+        }
         final Map<String, List<VersionNumber>> cveMap      = new HashMap<>();
         final Map<String, Double>              scoreMap    = new HashMap<>();
         final Map<String, Severity>            severityMap = new HashMap<>();
@@ -214,7 +227,8 @@ public class CveScanner {
     }
     private List<CVE> getLatestCves(final String url, final boolean graalvmOnly) {
         final List<CVE>            cvesFound = new ArrayList<>();
-        final HttpResponse<String> response  = get(url, Map.of("apiKey", "9a4bd31c-f084-4353-b3e5-6f1cc219410c"));
+        final HttpResponse<String> response  = get(url, Map.of("apiKey", PropertyManager.INSTANCE.getString(PropertyManager.PROPERTY_NVD_API_KEY),
+                                                               "Accept", "application/json"));
         if (null == response) { return cvesFound; }
         final String bodyText = response.body();
         final Gson   gson     = new GsonBuilder().setLenient().create();
@@ -404,7 +418,7 @@ public class CveScanner {
         if (cvesFound.isEmpty()) { return; }
         CVES.clear();
         CVES.addAll(cvesFound);
-        fireCveEvt(UPDATED);
+        fireCveEvt(UPDATED_OPENJDK);
     }
 
     private void loadGraalVMCvesFromFile() {
@@ -442,7 +456,7 @@ public class CveScanner {
         if (cvesFound.isEmpty()) { return; }
         GRAALVM_CVES.clear();
         GRAALVM_CVES.addAll(cvesFound);
-        fireCveEvt(UPDATED);
+        fireCveEvt(UPDATED_GRAALVM);
     }
 
     private void saveToJsonFile(final String filename, final String jsonText) {
@@ -456,7 +470,7 @@ public class CveScanner {
     // ******************** REST calls ****************************************
     private HttpClient createHttpClient() {
         return HttpClient.newBuilder()
-                         .connectTimeout(Duration.ofSeconds(20))
+                         .connectTimeout(Duration.ofSeconds(5))
                          .version(Version.HTTP_2)
                          .followRedirects(Redirect.NORMAL)
                          //.executor(Executors.newFixedThreadPool(4))
@@ -480,7 +494,6 @@ public class CveScanner {
                 requestHeaders.add(value);
             }
         });
-
         final HttpRequest request = HttpRequest.newBuilder()
                                                .GET()
                                                .uri(URI.create(uri))
@@ -494,6 +507,11 @@ public class CveScanner {
                 return response;
             } else {
                 // Problem with url request
+                if (response.statusCode() == 404) {
+                    System.out.println("NVD API status code 404 means the given NVD API key is probably wrong");
+                } else {
+                    System.out.println("Error NVD API status code: " + response.statusCode() + " for url: " + uri);
+                }
                 return response;
             }
         } catch (CompletionException | InterruptedException | IOException e) {
@@ -510,7 +528,7 @@ public class CveScanner {
 
         List<String> requestHeaders = new LinkedList<>();
         requestHeaders.add("User-Agent");
-        requestHeaders.add("DiscoAPI");
+        requestHeaders.add("CveScanner");
         headers.entrySet().forEach(entry -> {
             final String name  = entry.getKey();
             final String value = entry.getValue();
@@ -524,7 +542,7 @@ public class CveScanner {
                                                .GET()
                                                .uri(URI.create(uri))
                                                .headers(requestHeaders.toArray(new String[0]))
-                                               .timeout(Duration.ofSeconds(10))
+                                               .timeout(Duration.ofSeconds(5))
                                                .build();
 
         return httpClientAsync.sendAsync(request, BodyHandlers.ofString());

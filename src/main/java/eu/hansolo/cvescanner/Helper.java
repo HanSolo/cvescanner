@@ -3,6 +3,9 @@ package eu.hansolo.cvescanner;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -69,6 +72,14 @@ public class Helper {
             }
         } catch(IOException e) {
             return "";
+        }
+    }
+
+    public static final String urlEncode(final String text) {
+        try {
+            return URLEncoder.encode(text, StandardCharsets.UTF_8.toString());
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
         }
     }
 }
