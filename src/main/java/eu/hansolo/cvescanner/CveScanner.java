@@ -47,12 +47,16 @@ public class CveScanner {
     private final int                  updateInterval;
     private       HttpClient           httpClient;
     private       HttpClient           httpClientAsync;
+    private       String               nvdApiKey;
 
 
     public CveScanner() {
-        this(6);
+        this("", 6);
     }
     public CveScanner(final int updateInterval) {
+        this("", updateInterval);
+    }
+    public CveScanner(final String nvdApiKey, final int updateInterval) {
         if (updateInterval < 1) {
             this.updateInterval = 1;
         } else if (updateInterval > 24) {
@@ -60,12 +64,16 @@ public class CveScanner {
         } else {
             this.updateInterval = updateInterval;
         }
+        this.nvdApiKey = null == nvdApiKey ? "" : nvdApiKey;
         updateCves();
         updateGraalVMCves();
     }
 
 
     // ******************** Methods *******************************************
+    public final String getNvdApiKey() { return nvdApiKey; }
+    public final void setNvdApiKey(final String nvdApiKey) { this.nvdApiKey = null == nvdApiKey ? "" : nvdApiKey; }
+
     public final void updateCves() { updateCves(false); }
     public final void updateCves(final boolean force) {
         // Update CVE's related to OpenJDK
@@ -134,7 +142,7 @@ public class CveScanner {
     }
 
     private List<CVE> getLatestCves(final boolean graalVmOnly) {
-        if (null == PROPERTIES.get(PropertyManager.PROPERTY_NVD_API_KEY) || PROPERTIES.get(PropertyManager.PROPERTY_NVD_API_KEY).toString().isEmpty()) {
+        if (getNvdApiKey().isEmpty() && (null == PROPERTIES.get(PropertyManager.PROPERTY_NVD_API_KEY) || PROPERTIES.get(PropertyManager.PROPERTY_NVD_API_KEY).toString().isEmpty())) {
             throw new IllegalArgumentException("NVD API Key cannot be empty");
         }
         final Map<String, List<VersionNumber>> cveMap      = new HashMap<>();
@@ -226,8 +234,9 @@ public class CveScanner {
                      .collect(Collectors.toList()).stream().sorted(Comparator.comparing(CVE::id)).collect(Collectors.toList());
     }
     private List<CVE> getLatestCves(final String url, final boolean graalvmOnly) {
+        final String               nvdApiKey = getNvdApiKey().isEmpty() ? PropertyManager.INSTANCE.getString(PropertyManager.PROPERTY_NVD_API_KEY) : getNvdApiKey();
         final List<CVE>            cvesFound = new ArrayList<>();
-        final HttpResponse<String> response  = get(url, Map.of("apiKey", PropertyManager.INSTANCE.getString(PropertyManager.PROPERTY_NVD_API_KEY),
+        final HttpResponse<String> response  = get(url, Map.of("apiKey", nvdApiKey,
                                                                "Accept", "application/json"));
         if (null == response) { return cvesFound; }
         final String bodyText = response.body();

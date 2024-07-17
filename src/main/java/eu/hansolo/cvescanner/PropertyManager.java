@@ -23,7 +23,6 @@ public enum PropertyManager {
         properties = new Properties();
         // Load properties
         final String propertiesFilePath = new StringBuilder(Constants.HOME_FOLDER).append(CVE_SCANNER_PROPERTIES).toString();
-        System.out.println(propertiesFilePath);
         // Create properties file if not exists
         Path path = Paths.get(propertiesFilePath);
         if (!Files.exists(path)) { createProperties(properties); }

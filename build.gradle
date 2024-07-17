@@ -2,7 +2,7 @@ import java.text.SimpleDateFormat
 
 plugins {
     id 'java-library'
-    id 'net.nemerosa.versioning' version '3.0.0'
+    id 'net.nemerosa.versioning' version '3.1.0'
 }
 
 normalization {
@@ -22,9 +22,9 @@ ext {
 }
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: '*.jar')
+    //implementation fileTree(dir: 'libs', include: '*.jar')
     implementation("com.google.code.gson:gson:2.10.1")
-    //implementation("eu.hansolo:jdktools:21.0.5")
+    implementation("eu.hansolo:jdktools:21.0.9")
 }
 
 ext.moduleName = 'eu.hansolo.cvescanner'
