@@ -166,9 +166,9 @@ public class Constants {
 
         @Override public String toString() {
             return new StringBuilder().append(CURLY_BRACKET_OPEN)
-                                      .append(QUOTES).append("name").append(QUOTES).append(COLON).append(QUOTES).append(name()).append(QUOTES).append(COMMA)
-                                      .append(QUOTES).append("ui_string").append(QUOTES).append(COLON).append(QUOTES).append(uiString).append(QUOTES).append(COMMA)
-                                      .append(QUOTES).append("api_string").append(QUOTES).append(COLON).append(QUOTES).append(apiString).append(QUOTES)
+                                      .append(QUOTES).append("name").append(QUOTES_COLON_QUOTES).append(name()).append(QUOTES).append(COMMA)
+                                      .append(QUOTES).append("ui_string").append(QUOTES_COLON_QUOTES).append(uiString).append(QUOTES).append(COMMA)
+                                      .append(QUOTES).append("api_string").append(QUOTES_COLON_QUOTES).append(apiString).append(QUOTES)
                                       .append(CURLY_BRACKET_CLOSE)
                                       .toString();
         }
@@ -241,12 +241,12 @@ public class Constants {
         @Override public String toString() {
             final StringBuilder msgBuilder = new StringBuilder();
             msgBuilder.append(CURLY_BRACKET_OPEN)
-                      .append(QUOTES).append(FIELD_ID).append(QUOTES).append(COLON).append(QUOTES).append(id).append(QUOTES).append(COMMA)
-                      .append(QUOTES).append(FIELD_SCORE).append(QUOTES).append(COLON).append(score).append(COMMA)
-                      .append(QUOTES).append(FIELD_CVSS).append(QUOTES).append(COLON).append(QUOTES).append(cvss.apiString).append(QUOTES).append(COMMA)
-                      .append(QUOTES).append(FIELD_SEVERITY).append(QUOTES).append(COLON).append(QUOTES).append(severity.getApiString()).append(QUOTES).append(COMMA)
-                      .append(QUOTES).append(FIELD_URL).append(QUOTES).append(COLON).append(QUOTES).append(url()).append(QUOTES).append(COMMA)
-                      .append(QUOTES).append(FIELD_AFFECTED_VERSIONS).append(QUOTES).append(COLON)
+                      .append(QUOTES).append(FIELD_ID).append(QUOTES_COLON_QUOTES).append(id).append(QUOTES).append(COMMA)
+                      .append(QUOTES).append(FIELD_SCORE).append(QUOTES_COLON).append(score).append(COMMA)
+                      .append(QUOTES).append(FIELD_CVSS).append(QUOTES_COLON_QUOTES).append(cvss.apiString).append(QUOTES).append(COMMA)
+                      .append(QUOTES).append(FIELD_SEVERITY).append(QUOTES_COLON_QUOTES).append(severity.getApiString()).append(QUOTES).append(COMMA)
+                      .append(QUOTES).append(FIELD_URL).append(QUOTES_COLON_QUOTES).append(url()).append(QUOTES).append(COMMA)
+                      .append(QUOTES).append(FIELD_AFFECTED_VERSIONS).append(QUOTES_COLON)
                       .append(SQUARE_BRACKET_OPEN);
             affectedVersions.forEach(versionNumber -> msgBuilder.append(QUOTES).append(versionNumber).append(QUOTES).append(COMMA));
             msgBuilder.setLength(msgBuilder.length() - 1);
