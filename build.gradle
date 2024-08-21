@@ -23,8 +23,8 @@ ext {
 
 dependencies {
     //implementation fileTree(dir: 'libs', include: '*.jar')
-    implementation("com.google.code.gson:gson:2.10.1")
-    implementation("eu.hansolo:jdktools:21.0.9")
+    implementation("com.google.code.gson:gson:2.11.0")
+    implementation("eu.hansolo:jdktools:21.0.11")
 }
 
 ext.moduleName = 'eu.hansolo.cvescanner'
@@ -53,6 +53,7 @@ jar {
                 'Bundle-Name'           : project.name,
                 'Bundle-License'        : 'https://www.apache.org/licenses/LICENSE-2.0;description=Apache License Version 2.0;link=https://spdx.org/licenses/Apache-2.0.html',
                 'Bundle-Description'    : description,
+                'Bundle-Version'        : project.version,
                 'Bundle-SymbolicName'   : 'eu.hansolo.cvescanner',
                 'Class-Path'            : '${project.name}-${project.version}.jar'
         )
