@@ -9,31 +9,37 @@ import java.util.Objects;
 
 
 public class Constants {
-    public static final String NVD_URL_OPENJDK_V2         = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:oracle:openjdk:*:*:*:*:*:*:*:*&resultsPerPage=2000&noRejected";
-    public static final String NVD_URL_JDK_V2             = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:oracle:jdk:*:*:*:*:*:*:*:*&resultsPerPage=2000&noRejected";
-    public static final String NVD_URL_JRE_V2             = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:oracle:jre:*:*:*:*:*:*:*:*&resultsPerPage=2000&noRejected";
-    public static final String NVD_URL_JAVASE_V2          = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:oracle:java_se:*:*:*:*:*:*:*:*&resultsPerPage=2000&noRejected";
-    public static final String NVD_URL_GRAALVM_V2         = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:oracle:graalvm:*:*:*:*:*:*:*:*&resultsPerPage=2000&noRejected";
-    public static final String NVD_URL_GRAALVM_FOR_JDK_V2 = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:oracle:graalvm_for_jdk:*:*:*:*:*:*:*:*&resultsPerPage=2000&noRejected";
-    //public static final String NVD_URL_JAR_V2             = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:*:$NAME:$VERSION:*:*:*:*:*:*:*&resultsPerPage=100&noRejected";
+    public static final String NVD_URL_OPENJDK_V2            = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:oracle:openjdk:*:*:*:*:*:*:*:*&resultsPerPage=2000&noRejected";
+    public static final String NVD_URL_JDK_V2                = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:oracle:jdk:*:*:*:*:*:*:*:*&resultsPerPage=2000&noRejected";
+    public static final String NVD_URL_JRE_V2                = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:oracle:jre:*:*:*:*:*:*:*:*&resultsPerPage=2000&noRejected";
+    public static final String NVD_URL_JAVASE_V2             = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:oracle:java_se:*:*:*:*:*:*:*:*&resultsPerPage=2000&noRejected";
+    public static final String NVD_URL_GRAALVM_V2            = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:oracle:graalvm:*:*:*:*:*:*:*:*&resultsPerPage=2000&noRejected";
+    public static final String NVD_URL_GRAALVM_FOR_JDK_V2    = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:oracle:graalvm_for_jdk:*:*:*:*:*:*:*:*&resultsPerPage=2000&noRejected";
+    public static final String NVD_URL_AZUL_ZULU_V2          = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:azul:zulu:*:*:*:*:*:*:*:*&resultsPerPage=2000&noRejected";
+    //public static final String NVD_URL_JAR_V2                = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:*:$NAME:$VERSION:*:*:*:*:*:*:*&resultsPerPage=100&noRejected";
+    public static final String ZULU_CVE_URL                  = "https://docs.azul.com/core/cve";
 
-    public static final String CVE_BASE_URL               = "http://cve.mitre.org/cgi-bin/cvename.cgi?name=";
-    public static final String HOME_FOLDER                = new StringBuilder(System.getProperty("user.home")).append(File.separator).toString();
-    public static final String CVE_DB_FILENAME            = HOME_FOLDER + "cvedb.json";
-    public static final String CVE_DB_GRAALVM_FILENAME    = HOME_FOLDER + "graalvm_cvedb.json";
-    public static final String SQUARE_BRACKET_OPEN        = "[";
-    public static final String SQUARE_BRACKET_CLOSE       = "]";
-    public static final String CURLY_BRACKET_OPEN         = "{";
-    public static final String CURLY_BRACKET_CLOSE        = "}";
-    public static final String QUOTES                     = "\"";
-    public static final String COLON                      = ":";
-    public static final String QUOTES_COLON               = "\":";
-    public static final String QUOTES_COLON_QUOTES        = "\":\"";
-    public static final String COMMA                      = ",";
+    public static final String CVE_BASE_URL                  = "http://cve.mitre.org/cgi-bin/cvename.cgi?name=";
+    public static final String HOME_FOLDER                   = new StringBuilder(System.getProperty("user.home")).append(File.separator).toString();
+    public static final String CVE_DB_FILENAME               = HOME_FOLDER + "cvedb.json";
+    public static final String CVE_DB_GRAALVM_FILENAME       = HOME_FOLDER + "graalvm_cvedb.json";
+    public static final String CVE_DB_ZULU_FILENAME          = HOME_FOLDER + "zulu_cvedb.json";
+    public static final String CVE_DB_FIXED_IN_ZULU_FILENAME = HOME_FOLDER + "fixed_in_zulu_cvedb.json";
+    public static final String SQUARE_BRACKET_OPEN           = "[";
+    public static final String SQUARE_BRACKET_CLOSE          = "]";
+    public static final String CURLY_BRACKET_OPEN            = "{";
+    public static final String CURLY_BRACKET_CLOSE           = "}";
+    public static final String QUOTES                        = "\"";
+    public static final String COLON                         = ":";
+    public static final String QUOTES_COLON                  = "\":";
+    public static final String QUOTES_COLON_QUOTES           = "\":\"";
+    public static final String COMMA                         = ",";
 
 
     // ******************** Enums *********************************************
-    public enum CveEvtType { UPDATED_OPENJDK, UPDATED_GRAALVM, ERROR }
+    public enum DistributionType { OPENJDK, GRAALVM, ZULU, ALL }
+
+    public enum CveEvtType { UPDATED_OPENJDK, UPDATED_GRAALVM, UPDATED_ZULU, UPDATED_FIXED_IN_ZULU, ERROR }
 
     public enum CVSS {
         CVSSV2("CVSS 2.0", "cvss_20", "cvssMetricV2"),
