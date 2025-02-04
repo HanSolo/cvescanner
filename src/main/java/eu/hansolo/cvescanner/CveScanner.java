@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -250,8 +251,8 @@ public class CveScanner {
     }
     public final List<CVE> findCorrettoCvesForVersion(final VersionNumber version) { return getCorrettoCves().stream().filter(cve -> cve.affectedVersions().contains(version)).toList(); }
 
-    public final Map<VersionNumber, List<CVE>> findCvesForMajorVersion(final DistributionType distributionType, final int majorVersion) {
-        final Map<VersionNumber, List<CVE>> cvesPerVersionMap = new HashMap<>();
+    public final Map<VersionNumber, Set<CVE>> findCvesForMajorVersion(final DistributionType distributionType, final int majorVersion) {
+        final Map<VersionNumber, Set<CVE>> cvesPerVersionMap = new HashMap<>();
         final List<CVE> cvesToCheck;
         switch (distributionType) {
             case OPENJDK  -> cvesToCheck = getCves();
@@ -261,7 +262,7 @@ public class CveScanner {
             default       -> cvesToCheck = getCves();
         }
         cvesToCheck.forEach(cve -> cve.affectedVersions().stream().filter(versionNumber -> versionNumber.getFeature().getAsInt() == majorVersion).forEach(versionNumber -> {
-            if (!cvesPerVersionMap.containsKey(versionNumber)) { cvesPerVersionMap.put(versionNumber, new ArrayList<>()); }
+            if (!cvesPerVersionMap.containsKey(versionNumber)) { cvesPerVersionMap.put(versionNumber, new HashSet<>()); }
             cvesPerVersionMap.get(versionNumber).add(cve);
         }));
         return cvesPerVersionMap;

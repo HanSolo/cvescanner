@@ -8,6 +8,7 @@ import eu.hansolo.jdktools.versioning.VersionNumber;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
@@ -30,11 +31,11 @@ public class JDKVersionCheck {
             } catch (InterruptedException e) {}
         }
 
-        Map<VersionNumber, List<CVE>> cvesPerMajorVersion = cveScanner.findCvesForMajorVersion(DistributionType.OPENJDK, majorVersion);
+        Map<VersionNumber, Set<CVE>> cvesPerMajorVersion = cveScanner.findCvesForMajorVersion(DistributionType.OPENJDK, majorVersion);
         cvesPerMajorVersion.entrySet().stream().sorted(Map.Entry.comparingByKey())
                            .forEach(entry -> {
                                final VersionNumber version  = entry.getKey();
-                               final List<CVE>     cves     = entry.getValue();
+                               final Set<CVE>      cves     = entry.getValue();
                                final List<CVE>     critical = cves.stream().filter(cve -> cve.severity() == Severity.CRITICAL).toList();
                                final List<CVE>     high     = cves.stream().filter(cve -> cve.severity() == Severity.HIGH).toList();
                                final List<CVE>     medium   = cves.stream().filter(cve -> cve.severity() == Severity.MEDIUM).toList();
