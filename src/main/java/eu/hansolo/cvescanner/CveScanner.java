@@ -38,17 +38,17 @@ import static eu.hansolo.cvescanner.Constants.*;
 
 
 public class CveScanner {
-    private final Properties                      PROPERTIES            = PropertyManager.INSTANCE.getProperties();
-    private final CveEvt                          UPDATED_OPENJDK       = new CveEvt(CveEvtType.UPDATED_OPENJDK);
-    private final CveEvt                          UPDATED_GRAALVM       = new CveEvt(CveEvtType.UPDATED_GRAALVM);
-    private final CveEvt                          UPDATED_ZULU          = new CveEvt(CveEvtType.UPDATED_ZULU);
-    private final CveEvt                          UPDATED_FIXED_IN_ZULU = new CveEvt(CveEvtType.UPDATED_FIXED_IN_ZULU);
-    private final CveEvt                          ERROR                 = new CveEvt(CveEvtType.ERROR);
-    private final List<CVE>                       CVES                  = new CopyOnWriteArrayList<>();
-    private final List<CVE>                       GRAALVM_CVES          = new CopyOnWriteArrayList<>();
-    private final List<CVE>                       ZULU_CVES             = new CopyOnWriteArrayList<>();
-    private final Map<String, Set<VersionNumber>> CVES_FIXED_IN_ZULU    = new HashMap<>();
-    private final List<CveEvtConsumer>            consumers             = new CopyOnWriteArrayList<>();
+    private final Properties                      PROPERTIES         = PropertyManager.INSTANCE.getProperties();
+    private final CveEvt                          UPDATED_OPENJDK    = new CveEvt(CveEvtType.UPDATED_OPENJDK);
+    private final CveEvt                          UPDATED_GRAALVM    = new CveEvt(CveEvtType.UPDATED_GRAALVM);
+    private final CveEvt                          UPDATED_ZULU       = new CveEvt(CveEvtType.UPDATED_ZULU);
+    private final CveEvt                          UPDATED_CORRETTO   = new CveEvt(CveEvtType.UPDATED_CORRETTO);
+    private final CveEvt                          ERROR              = new CveEvt(CveEvtType.ERROR);
+    private final List<CVE>                       CVES               = new CopyOnWriteArrayList<>();
+    private final List<CVE>                       GRAALVM_CVES       = new CopyOnWriteArrayList<>();
+    private final List<CVE>                       ZULU_CVES          = new CopyOnWriteArrayList<>();
+    private final List<CVE>                       CORRETTO_CVES      = new CopyOnWriteArrayList<>();
+    private final List<CveEvtConsumer>            consumers          = new CopyOnWriteArrayList<>();
     private final int                             updateInterval;
     private       HttpClient                      httpClient;
     private       HttpClient                      httpClientAsync;
@@ -141,12 +141,20 @@ public class CveScanner {
                 loadZuluCvesFromFile();
             } else {
                 // Replace Zulu Versions with OpenJDK versions
-                String                            jsonTxt    = Helper.getCveJsonDataOfCVEsFixedInZulu();
-                Map<VersionNumber, VersionNumber> versionMap = Helper.getVersionZuluOpenJDKMap(jsonTxt);
-                List<CVE>                         latestCves = getLatestCves(DistributionType.ZULU);
+                Map<VersionNumber, VersionNumber> zuluVersions = Helper.getZuluVersions();
+                List<CVE>                         latestCves   = getLatestCves(DistributionType.ZULU);
                 latestCves.forEach(cve -> {
                     List<VersionNumber> modifiedAffectedVersions = new ArrayList<>();
-                    cve.affectedVersions().forEach(versionZulu -> modifiedAffectedVersions.add(versionMap.containsKey(versionZulu) ? versionMap.get(versionZulu) : versionZulu));
+                    cve.affectedVersions().forEach(zuluVersion -> {
+                        zuluVersions.entrySet().forEach(entry -> {
+                            if (entry.getKey().getFeature().getAsInt() == zuluVersion.getFeature().getAsInt() &&
+                                entry.getKey().getInterim().getAsInt() == zuluVersion.getInterim().getAsInt() &&
+                                entry.getKey().getUpdate().getAsInt()  == zuluVersion.getUpdate().getAsInt() &&
+                                entry.getKey().getPatch().getAsInt() == zuluVersion.getPatch().getAsInt()) {
+                                modifiedAffectedVersions.add(entry.getValue());
+                            }
+                        });
+                    });
                     cve.affectedVersions().clear();
                     cve.affectedVersions().addAll(modifiedAffectedVersions);
                 });
@@ -160,12 +168,20 @@ public class CveScanner {
             }
         } else {
             // Replace Zulu Versions with OpenJDK versions
-            String                            jsonTxt    = Helper.getCveJsonDataOfCVEsFixedInZulu();
-            Map<VersionNumber, VersionNumber> versionMap = Helper.getVersionZuluOpenJDKMap(jsonTxt);
-            List<CVE>                         latestCves = getLatestCves(DistributionType.ZULU);
+            Map<VersionNumber, VersionNumber> zuluVersions = Helper.getZuluVersions();
+            List<CVE>                         latestCves   = getLatestCves(DistributionType.ZULU);
             latestCves.forEach(cve -> {
                 List<VersionNumber> modifiedAffectedVersions = new ArrayList<>();
-                cve.affectedVersions().forEach(versionZulu -> modifiedAffectedVersions.add(versionMap.containsKey(versionZulu) ? versionMap.get(versionZulu) : versionZulu));
+                cve.affectedVersions().forEach(zuluVersion -> {
+                    zuluVersions.entrySet().forEach(entry -> {
+                        if (entry.getKey().getFeature().getAsInt() == zuluVersion.getFeature().getAsInt() &&
+                            entry.getKey().getInterim().getAsInt() == zuluVersion.getInterim().getAsInt() &&
+                            entry.getKey().getUpdate().getAsInt()  == zuluVersion.getUpdate().getAsInt() &&
+                            entry.getKey().getPatch().getAsInt() == zuluVersion.getPatch().getAsInt()) {
+                            modifiedAffectedVersions.add(entry.getValue());
+                        }
+                    });
+                });
                 cve.affectedVersions().clear();
                 cve.affectedVersions().addAll(modifiedAffectedVersions);
             });
@@ -177,37 +193,32 @@ public class CveScanner {
             fireCveEvt(UPDATED_ZULU);
         }
     }
-
-    public final void updateCvesFixedInZulu() {
-        updateCvesFixedInZulu(false);
+    public final void updateCorrettoCves() {
+        updateCorrettoCves(false);
     }
-    public final void updateCvesFixedInZulu(final boolean force) {
-        // Update CVE's fixed in Zulu
-        final File cvesFixedInZulu = new File(CVE_DB_FIXED_IN_ZULU_FILENAME);
-        if (cvesFixedInZulu.exists()) {
+    public final void updateCorrettoCves(final boolean force) {
+        // Update CVE's related to Zulu
+        final File cvedbCorretto = new File(CVE_DB_CORRETTO_FILENAME);
+        if (cvedbCorretto.exists()) {
             final Instant now = Instant.now();
-            if (!force && Duration.between(Instant.ofEpochMilli(cvesFixedInZulu.lastModified()), now).toHours() < updateInterval) {
-                try {
-                    final String jsonTxt = Helper.readTextFile(CVE_DB_FIXED_IN_ZULU_FILENAME);
-                    this.CVES_FIXED_IN_ZULU.clear();
-                    this.CVES_FIXED_IN_ZULU.putAll(Helper.getCVEsFixedInZulu(jsonTxt));
-                } catch (IOException e) {
-                    fireCveEvt(ERROR);
-                }
+            if (!force && Duration.between(Instant.ofEpochMilli(cvedbCorretto.lastModified()), now).toHours() < updateInterval) {
+                loadCorrettoCvesFromFile();
             } else {
-                final String jsonTxt = Helper.getCveJsonDataOfCVEsFixedInZulu();
-                cvesFixedInZulu.delete();
-                this.CVES_FIXED_IN_ZULU.clear();
-                this.CVES_FIXED_IN_ZULU.putAll(Helper.getCVEsFixedInZulu(jsonTxt));
-                saveToJsonFile(CVE_DB_FIXED_IN_ZULU_FILENAME, jsonTxt);
-                fireCveEvt(UPDATED_FIXED_IN_ZULU);
+                List<CVE> latestCves = getLatestCves(DistributionType.CORRETTO);
+                CORRETTO_CVES.clear();
+                CORRETTO_CVES.addAll(latestCves);
+                cvedbCorretto.delete();
+                final StringBuilder jsonBuilder = new StringBuilder().append(CORRETTO_CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
+                saveToJsonFile(CVE_DB_CORRETTO_FILENAME, jsonBuilder.toString());
+                fireCveEvt(UPDATED_CORRETTO);
             }
         } else {
-            final String jsonTxt = Helper.getCveJsonDataOfCVEsFixedInZulu();
-            this.CVES_FIXED_IN_ZULU.clear();
-            this.CVES_FIXED_IN_ZULU.putAll(Helper.getCVEsFixedInZulu(jsonTxt));
-            saveToJsonFile(CVE_DB_FIXED_IN_ZULU_FILENAME, jsonTxt);
-            fireCveEvt(UPDATED_FIXED_IN_ZULU);
+            List<CVE> latestCves   = getLatestCves(DistributionType.CORRETTO);
+            CORRETTO_CVES.clear();
+            CORRETTO_CVES.addAll(latestCves);
+            final StringBuilder jsonBuilder = new StringBuilder().append(ZULU_CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
+            saveToJsonFile(CVE_DB_CORRETTO_FILENAME, jsonBuilder.toString());
+            fireCveEvt(UPDATED_CORRETTO);
         }
     }
 
@@ -223,9 +234,9 @@ public class CveScanner {
         if (ZULU_CVES.isEmpty()) { updateZuluCves(); }
         return ZULU_CVES;
     }
-    public final Map<String, Set<VersionNumber>> getCvesFixedInZulu() {
-        if (CVES_FIXED_IN_ZULU.isEmpty()) { updateCvesFixedInZulu(); }
-        return CVES_FIXED_IN_ZULU;
+    public final List<CVE> getCorrettoCves() {
+        if (CORRETTO_CVES.isEmpty()) { updateCorrettoCves(); }
+        return CORRETTO_CVES;
     }
 
     public final List<CVE> findCvesForVersion(final VersionNumber version) {
@@ -237,11 +248,23 @@ public class CveScanner {
     public final List<CVE> findZuluCvesForVersion(final VersionNumber version) {
         return getZuluCves().stream().filter(cve -> cve.affectedVersions().contains(version)).toList();
     }
+    public final List<CVE> findCorrettoCvesForVersion(final VersionNumber version) { return getCorrettoCves().stream().filter(cve -> cve.affectedVersions().contains(version)).toList(); }
 
-    public final List<String> findCveIdsForVersion(final VersionNumber version) {
-        List<String> cveIds = new ArrayList<>();
-        CVES_FIXED_IN_ZULU.entrySet().forEach(entry -> entry.getValue().stream().filter(versionNumber -> versionNumber.equals(version)).toList().forEach(versionNumber -> cveIds.add(entry.getKey())));
-        return cveIds;
+    public final Map<VersionNumber, List<CVE>> findCvesForMajorVersion(final DistributionType distributionType, final int majorVersion) {
+        final Map<VersionNumber, List<CVE>> cvesPerVersionMap = new HashMap<>();
+        final List<CVE> cvesToCheck;
+        switch (distributionType) {
+            case OPENJDK  -> cvesToCheck = getCves();
+            case CORRETTO -> cvesToCheck = getCorrettoCves();
+            case ZULU     -> cvesToCheck = getZuluCves();
+            case GRAALVM  -> cvesToCheck = getGraalVMCves();
+            default       -> cvesToCheck = getCves();
+        }
+        cvesToCheck.forEach(cve -> cve.affectedVersions().stream().filter(versionNumber -> versionNumber.getFeature().getAsInt() == majorVersion).forEach(versionNumber -> {
+            if (!cvesPerVersionMap.containsKey(versionNumber)) { cvesPerVersionMap.put(versionNumber, new ArrayList<>()); }
+            cvesPerVersionMap.get(versionNumber).add(cve);
+        }));
+        return cvesPerVersionMap;
     }
 
     private List<CVE> getLatestCves(final Constants.DistributionType distributionType) {
@@ -640,6 +663,44 @@ public class CveScanner {
         ZULU_CVES.clear();
         ZULU_CVES.addAll(cvesFound);
         fireCveEvt(UPDATED_ZULU);
+    }
+
+    private void loadCorrettoCvesFromFile() {
+        final List<CVE> cvesFound = new ArrayList<>();
+        try {
+            final String jsonText = new String(Files.readAllBytes(Paths.get(CVE_DB_CORRETTO_FILENAME)));
+            Gson gson = new GsonBuilder().setLenient().create();
+            if (null != jsonText || !jsonText.isEmpty()) {
+                final JsonArray cveArray = gson.fromJson(jsonText, JsonArray.class);
+                for (int i = 0 ; i < cveArray.size() ; i++) {
+                    final JsonObject json = cveArray.get(i).getAsJsonObject();
+                    if (!json.has(CVE.FIELD_CVSS)) {
+                        updateCves(true);
+                        return;
+                    }
+                    if (json.has(CVE.FIELD_ID)) {
+                        final String    id       = json.get(CVE.FIELD_ID).getAsString();
+                        final double    score    = json.get(CVE.FIELD_SCORE).getAsDouble();
+                        final CVSS      cvss     = CVSS.fromText(json.get(CVE.FIELD_CVSS).getAsString());
+                        final Severity  severity = Severity.fromText(json.get(CVE.FIELD_SEVERITY).getAsString());
+                        final JsonArray versions = json.get(CVE.FIELD_AFFECTED_VERSIONS).getAsJsonArray();
+                        final List<VersionNumber> affectedVersions = new ArrayList<>();
+                        for (int j = 0 ; j < versions.size() ; j++) {
+                            final String version = versions.get(j).getAsString();
+                            if (!version.equals("-")) {
+                                affectedVersions.add(VersionNumber.fromText(version));
+                            }
+                        }
+                        cvesFound.add(new CVE(id, score, cvss, severity, affectedVersions));
+                    }
+                }
+            }
+        } catch (IOException e) { fireCveEvt(ERROR); }
+
+        if (cvesFound.isEmpty()) { return; }
+        CORRETTO_CVES.clear();
+        CORRETTO_CVES.addAll(cvesFound);
+        fireCveEvt(UPDATED_CORRETTO);
     }
 
     private void saveToJsonFile(final String filename, final String jsonText) {

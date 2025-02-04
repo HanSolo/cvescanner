@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import eu.hansolo.jdktools.ArchiveType;
+import eu.hansolo.jdktools.util.OutputFormat;
 import eu.hansolo.jdktools.versioning.VersionNumber;
 
 import java.io.BufferedReader;
@@ -13,12 +15,19 @@ import java.io.UncheckedIOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpClient.Redirect;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.Month;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,14 +37,25 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletionException;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static eu.hansolo.cvescanner.Constants.CDN_URL;
+import static eu.hansolo.cvescanner.Constants.COMMA;
+import static eu.hansolo.cvescanner.Constants.HOME_FOLDER;
+import static eu.hansolo.cvescanner.Constants.HREF_FILE_MATCHER;
+import static eu.hansolo.cvescanner.Constants.ZULU_VERSIONS_FILENAME;
+import static eu.hansolo.cvescanner.Constants.ZULU_VERSIONS_HOME_FILENAME;
+import static eu.hansolo.jdktools.Constants.NEW_LINE;
 
 
 public class Helper {
-    public static final String  HOME_FOLDER = new StringBuilder(System.getProperty("user.home")).append(File.separator).toString();
+    private static HttpClient httpClient;
+
 
     public static List<Jar> getUsersJars() {
         final Set<String> jarFiles = getJarsInHomeFolder();
@@ -105,13 +125,6 @@ public class Helper {
         return jsonTxt;
     }
 
-    public static final Map<String, Set<VersionNumber>> getCVEsFixedInZulu() {
-        final String html      = getTextFromUrl(Constants.ZULU_CVE_URL, Charset.forName("UTF-8"));
-        final int    jsonStart = html.indexOf("[ {");
-        final int    jsonStop  = html.lastIndexOf("} ]") + 3;
-        final String jsonTxt   = html.substring(jsonStart, jsonStop);
-        return getCVEsFixedInZulu(jsonTxt);
-    }
     public static final Map<String, Set<VersionNumber>> getCVEsFixedInZulu(final String jsonTxt) {
         if (null == jsonTxt || jsonTxt.isEmpty()) { return new HashMap<>(); }
         enum Type {
@@ -175,28 +188,6 @@ public class Helper {
         return cveMap;
     }
 
-    public static final Map<VersionNumber, VersionNumber> getVersionZuluOpenJDKMap(final String jsonTxt) {
-        if (null == jsonTxt || jsonTxt.isEmpty()) { return new HashMap<>(); }
-        final Gson      gson      = new Gson();
-        final JsonArray jsonArray = gson.fromJson(jsonTxt, JsonArray.class);
-        Map<VersionNumber, VersionNumber> versionZuluOpenJDKMap = new HashMap<>();
-        for (JsonElement updateElement : jsonArray) {
-            JsonObject updateObj = updateElement.getAsJsonObject();
-            JsonArray  cvesArray = updateObj.get("cves").getAsJsonArray();
-            for (JsonElement cveElement : cvesArray) {
-                JsonObject cveObj = cveElement.getAsJsonObject();
-                JsonArray zuluVersionsArray = cveObj.get("zulu_versions").getAsJsonArray();
-                for (JsonElement zuluVersionElement : zuluVersionsArray) {
-                    JsonObject zuluVersionObj = zuluVersionElement.getAsJsonObject();
-                    VersionNumber zuluVersion = VersionNumber.fromText(zuluVersionObj.get("zulu").getAsString());
-                    VersionNumber jdkVersion  = VersionNumber.fromText(zuluVersionObj.get("jdk").getAsString());
-                    versionZuluOpenJDKMap.put(zuluVersion, jdkVersion);
-                }
-            }
-        }
-        return versionZuluOpenJDKMap;
-    }
-
     public static final String urlEncode(final String text) {
         try {
             return URLEncoder.encode(text, StandardCharsets.UTF_8.toString());
@@ -213,6 +204,12 @@ public class Helper {
         return builder.toString();
     }
 
+    public static List<String> readTextFileToList(final String filename) throws IOException {
+        final Path           path   = Paths.get(filename);
+        final BufferedReader reader = Files.newBufferedReader(path);
+        return reader.lines().collect(Collectors.toList());
+    }
+
     public static final void saveToTextFileToUserFolder(final String filename, final String text) {
         if (null == text || text.isEmpty()) { return; }
 
@@ -220,9 +217,137 @@ public class Helper {
         if (existingFile.exists()) { existingFile.delete(); }
 
         try {
-            Files.write(Paths.get(Constants.HOME_FOLDER + filename), text.getBytes());
+            Files.write(Paths.get(HOME_FOLDER + filename), text.getBytes());
         } catch (IOException e) {
             System.out.println("Error writing text file: " + filename);
+        }
+    }
+
+    public static final Map<VersionNumber, VersionNumber> getZuluVersions() {
+        Map<VersionNumber, VersionNumber> zuluVersions = new HashMap<>();
+        final File zuluVersionsFile = new File(ZULU_VERSIONS_HOME_FILENAME);
+        if (zuluVersionsFile.exists()) {
+            final Instant now = Instant.now();
+            if (Duration.between(Instant.ofEpochMilli(zuluVersionsFile.lastModified()), now).toDays() < 30) {
+                System.out.println("zulu versions up to date -> load file");
+                zuluVersions = getZuluVersionsFromFile();
+            } else {
+                System.out.println("zulu versions outdated -> update from CDN");
+                zuluVersions = Helper.getZuluVersionsFromCDN();
+            }
+        } else {
+            System.out.println("zulu versions not present -> load from CDN");
+            zuluVersions = Helper.getZuluVersionsFromCDN();
+        }
+        return zuluVersions;
+    }
+    public static final Map<VersionNumber, VersionNumber> getZuluVersionsFromFile() {
+        Map<VersionNumber, VersionNumber> zuluVersions = new HashMap<>();
+        try {
+            List<String> lines = Helper.readTextFileToList(ZULU_VERSIONS_HOME_FILENAME);
+            lines.forEach(line -> {
+                String[] parts = line.split(COMMA);
+                if (parts.length > 1) {
+                    zuluVersions.put(VersionNumber.fromText(parts[0]), VersionNumber.fromText(parts[1]));
+                }
+            });
+        } catch (IOException e) {
+            System.out.println("Error loading zulu versions from file");
+            return zuluVersions;
+        }
+        return zuluVersions;
+    }
+    public static final Map<VersionNumber, VersionNumber> getZuluVersionsFromCDN() {
+        Map<VersionNumber, VersionNumber> zuluVersions = new HashMap<>();
+        try {
+            final HttpResponse<String> response = Helper.get(CDN_URL);
+            if (null == response) { return zuluVersions; }
+            final String html = response.body();
+            if (html.isEmpty()) { return zuluVersions; }
+
+            final Pattern filenamePrefixVersion       = Pattern.compile("(zulu|zre|zulu-repo|zulurepo)((-|_)?)(\\d+)\\.(\\d+)(\\.|\\+)(\\d+)(\\.|_?)(\\d+)?(-|_)([0-9]+-)?((ca|ea)(-))?(hl-)?(fx-)?(cp[0-9]+-)?(jdk|jre)?");
+            final Pattern filenamePrefixDistroVersion = Pattern.compile("(zulu|zre|zulu-repo|zulurepo)");
+            final List<String> fileHrefs              = new ArrayList<>(Helper.getFileHrefsFromString(html));
+            for (String href : fileHrefs) {
+                String filename = Helper.getFilenameFromText(href);
+                if (filename.contains("noarch")) { continue; }
+                String        reducedToVersionFilename       = filename.startsWith("zulu1.") ? filename.replaceAll(filenamePrefixDistroVersion.pattern(), "") : filename.replaceAll(filenamePrefixVersion.pattern(), "");
+                VersionNumber versionNumber                  = VersionNumber.fromText(reducedToVersionFilename);
+                String        reducedToDistroVersionFilename = filename.startsWith("zulu1.") ? filename.replaceAll(filenamePrefixVersion.pattern(), "") : filename.replaceAll(filenamePrefixDistroVersion.pattern(), "");
+                VersionNumber distroVersionNumber            = VersionNumber.fromText(reducedToDistroVersionFilename);
+                if (!versionNumber.toString(OutputFormat.FULL, true, false).equals(distroVersionNumber.toString(OutputFormat.FULL, true, false))) {
+                    if (distroVersionNumber.getFeature().getAsInt() > 6 && versionNumber.getUpdate().getAsInt() < 9999) {
+                        zuluVersions.put(distroVersionNumber, versionNumber);
+                    }
+                }
+            }
+            // Save to txt file
+            StringBuilder txtBuilder = new StringBuilder();
+            zuluVersions.entrySet().forEach(entry -> txtBuilder.append(entry.getKey().toString(OutputFormat.FULL,true,false)).append(COMMA).append(entry.getValue().toString(OutputFormat.FULL, true, false)).append(NEW_LINE));
+            File zuluVersionsFile = new File(ZULU_VERSIONS_HOME_FILENAME);
+            if (zuluVersionsFile.exists()) { zuluVersionsFile.delete();}
+            Helper.saveToTextFileToUserFolder(ZULU_VERSIONS_FILENAME, txtBuilder.toString());
+        } catch (Exception e) {
+            System.out.println("Error fetching packages from Zulu CDN. " + e.getMessage());
+        }
+        return zuluVersions;
+    }
+    private static final Set<String> getFileHrefsFromString(final String text) {
+        Set<String> hrefsFound = new HashSet<>();
+        HREF_FILE_MATCHER.reset(text);
+        while (HREF_FILE_MATCHER.find()) {
+            hrefsFound.add(HREF_FILE_MATCHER.group(1));
+        }
+        return hrefsFound;
+    }
+    private static final String getFilenameFromText(final String text) {
+        ArchiveType archiveTypeFound = getFileEnding(text);
+        if (ArchiveType.NONE == archiveTypeFound || ArchiveType.NOT_FOUND == archiveTypeFound) { return ""; }
+        int    lastSlash = text.lastIndexOf("/") + 1;
+        String fileName  = text.substring(lastSlash);
+        return fileName;
+    }
+    private static final ArchiveType getFileEnding(final String fileName) {
+        if (null == fileName || fileName.isEmpty()) { return ArchiveType.NONE; }
+        for (ArchiveType archiveType : ArchiveType.values()) {
+            for (String ending : archiveType.getFileEndings()) {
+                if (fileName.endsWith(ending)) { return archiveType; }
+            }
+        }
+        return ArchiveType.NONE;
+    }
+
+
+    // ******************** REST calls ****************************************
+    public static HttpClient createHttpClient() {
+        return HttpClient.newBuilder()
+                         .connectTimeout(Duration.ofSeconds(20))
+                         .followRedirects(Redirect.NORMAL)
+                         .version(java.net.http.HttpClient.Version.HTTP_2)
+                         .build();
+    }
+
+    public static final HttpResponse<String> get(final String uri) { return get(uri, ""); }
+    public static final HttpResponse<String> get(final String uri, final String userAgent) {
+        if (null == httpClient) { httpClient = createHttpClient(); }
+        final String userAgentText = (null == userAgent || userAgent.isEmpty()) ? "DiscoClient V2" : "DiscoClient V2 (" + userAgent + ")";
+        HttpRequest request = HttpRequest.newBuilder()
+                                         .GET()
+                                         .uri(URI.create(uri))
+                                         .setHeader("Accept", "application/json")
+                                         .setHeader("User-Agent", userAgentText)
+                                         .timeout(Duration.ofSeconds(60))
+                                         .build();
+        try {
+            HttpResponse<String> response = httpClient.send(request, BodyHandlers.ofString());
+            if (response.statusCode() == 200) {
+                return response;
+            } else {
+                // Problem with url request
+                return response;
+            }
+        } catch (CompletionException | InterruptedException | IOException e) {
+            return null;
         }
     }
 }

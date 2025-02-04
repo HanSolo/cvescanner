@@ -12,24 +12,30 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class Main {
 
     public static void main(String[] args) {
-        AtomicBoolean running        = new AtomicBoolean(true);
-        AtomicBoolean openJdkUpdated = new AtomicBoolean(false);
-        AtomicBoolean graalvmUPdated = new AtomicBoolean(false);
-        AtomicBoolean zuluUpdated    = new AtomicBoolean(false);
-        CveScanner    cveScanner     = new CveScanner(3);
+        AtomicBoolean running         = new AtomicBoolean(true);
+        AtomicBoolean openJdkUpdated  = new AtomicBoolean(false);
+        AtomicBoolean graalvmUPdated  = new AtomicBoolean(false);
+        AtomicBoolean zuluUpdated     = new AtomicBoolean(false);
+        AtomicBoolean correttoUpdated = new AtomicBoolean(false);
+        CveScanner    cveScanner      = new CveScanner(3);
+
+        cveScanner.updateCorrettoCves(true);
+        System.exit(0);
 
         cveScanner.addCveEvtConsumer(e -> {
             switch(e.type()) {
-                case UPDATED_OPENJDK -> openJdkUpdated.set(true);
-                case UPDATED_GRAALVM -> graalvmUPdated.set(true);
-                case UPDATED_ZULU    -> zuluUpdated.set(true);
-                case ERROR           -> System.out.println("Error getting CVEs");
+                case UPDATED_OPENJDK  -> openJdkUpdated.set(true);
+                case UPDATED_GRAALVM  -> graalvmUPdated.set(true);
+                case UPDATED_ZULU     -> zuluUpdated.set(true);
+                case UPDATED_CORRETTO -> correttoUpdated.set(true);
+                case ERROR            -> System.out.println("Error getting CVEs");
             }
         });
 
         cveScanner.updateCves(false);
         cveScanner.updateGraalVMCves(false);
         cveScanner.updateZuluCves(false);
+        cveScanner.updateCorrettoCves(false);
 
         while(!openJdkUpdated.get() && !graalvmUPdated.get() && !zuluUpdated.get()) {
             try {
