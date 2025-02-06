@@ -582,6 +582,67 @@ public class CveScanner {
     public final boolean isCorrettoUpdateInProgress() { return this.updateCorrettoInProgress.get(); }
     public final boolean isZuluUpdateInProgress() { return this.updateZuluInProgress.get(); }
 
+    public final void setCVES(final List<CVE> cves) {
+        this.CVES.clear();
+        this.CVES.addAll(cves);
+        final StringBuilder jsonBuilder = new StringBuilder().append(CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
+        saveToJsonFile(CVE_DB_FILENAME, jsonBuilder.toString());
+    }
+    public final void setGraalVMCves(final List<CVE> cves) {
+        this.GRAALVM_CVES.clear();
+        this.GRAALVM_CVES.addAll(cves);
+        final StringBuilder jsonBuilder = new StringBuilder().append(GRAALVM_CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
+        saveToJsonFile(CVE_DB_GRAALVM_FILENAME, jsonBuilder.toString());
+    }
+    public final void setZuluCves(final List<CVE> cves) {
+        this.ZULU_CVES.clear();
+        this.ZULU_CVES.addAll(cves);
+        final StringBuilder jsonBuilder = new StringBuilder().append(ZULU_CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
+        saveToJsonFile(CVE_DB_ZULU_FILENAME, jsonBuilder.toString());
+    }
+    public final void setCorrettoCves(final List<CVE> cves) {
+        this.CORRETTO_CVES.clear();
+        this.CORRETTO_CVES.addAll(cves);
+        final StringBuilder jsonBuilder = new StringBuilder().append(CORRETTO_CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
+        saveToJsonFile(CVE_DB_CORRETTO_FILENAME, jsonBuilder.toString());
+    }
+
+    public final List<CVE> loadCvesFromJsonFile(final String filename) {
+        final List<CVE> cvesFound = new ArrayList<>();
+        try {
+            final String jsonText = new String(Files.readAllBytes(Paths.get(filename)));
+            Gson gson = new GsonBuilder().setLenient().create();
+            if (null != jsonText || !jsonText.isEmpty()) {
+                final JsonArray cveArray = gson.fromJson(jsonText, JsonArray.class);
+                for (int i = 0 ; i < cveArray.size() ; i++) {
+                    final JsonObject json = cveArray.get(i).getAsJsonObject();
+                    if (!json.has(CVE.FIELD_CVSS)) {
+                        updateCves(true);
+                        return cvesFound;
+                    }
+                    if (json.has(CVE.FIELD_ID)) {
+                        final String    id       = json.get(CVE.FIELD_ID).getAsString();
+                        final double    score    = json.get(CVE.FIELD_SCORE).getAsDouble();
+                        final CVSS      cvss     = CVSS.fromText(json.get(CVE.FIELD_CVSS).getAsString());
+                        final Severity  severity = Severity.fromText(json.get(CVE.FIELD_SEVERITY).getAsString());
+                        final JsonArray versions = json.get(CVE.FIELD_AFFECTED_VERSIONS).getAsJsonArray();
+                        final List<VersionNumber> affectedVersions = new ArrayList<>();
+                        for (int j = 0 ; j < versions.size() ; j++) {
+                            final String version = versions.get(j).getAsString();
+                            if (!version.equals("-")) {
+                                affectedVersions.add(VersionNumber.fromText(version));
+                            }
+                        }
+                        cvesFound.add(new CVE(id, score, cvss, severity, affectedVersions));
+                    }
+                }
+            }
+        } catch (IOException e) {
+            logger.warn("Failed to load cves from file {}. Error: {}", filename, e);
+        }
+        return cvesFound;
+    }
+
     private List<CVE> getLatestCves(final Constants.DistributionType distributionType) {
         if (getNvdApiKey().isEmpty() && (null == PROPERTIES.get(PropertyManager.PROPERTY_NVD_API_KEY) || PROPERTIES.get(PropertyManager.PROPERTY_NVD_API_KEY).toString().isEmpty())) {
             throw new IllegalArgumentException("NVD API Key cannot be empty");
