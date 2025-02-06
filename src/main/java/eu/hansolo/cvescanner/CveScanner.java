@@ -84,8 +84,6 @@ public class CveScanner {
             this.updateInterval = updateInterval;
         }
         this.nvdApiKey = null == nvdApiKey ? "" : nvdApiKey;
-        updateCves();
-        updateGraalVMCves();
     }
 
 
@@ -93,8 +91,8 @@ public class CveScanner {
     public final String getNvdApiKey() { return nvdApiKey; }
     public final void setNvdApiKey(final String nvdApiKey) { this.nvdApiKey = null == nvdApiKey ? "" : nvdApiKey; }
 
-    public final void updateCves() { updateCves(false); }
-    public final void updateCves(final boolean force) {
+    public final boolean updateCves() { return updateCves(false); }
+    public final boolean updateCves(final boolean force) {
         // Update CVE's related to OpenJDK
         logger.debug("Updating OpenJDK CVEs");
         this.updateOpenJDKInProgress.set(true);
@@ -108,9 +106,11 @@ public class CveScanner {
                     logger.debug("Failed loading OpenJDK CVEs from file, file is empty");
                     cvedbOpenJDK.delete();
                     fireCveEvt(UPDATE_OPENJDK_FAILED);
+                    return false;
                 } else {
                     logger.debug("Successfully loaded OpenJDK CVEs from file");
                     fireCveEvt(UPDATED_OPENJDK);
+                    return true;
                 }
             } else {
                 final List<CVE> latestCVEs = getLatestCves(DistributionType.OPENJDK);
@@ -119,11 +119,13 @@ public class CveScanner {
                     logger.debug("Failed to update OpenJDK CVEs");
                     this.updateOpenJDKInProgress.set(false);
                     fireCveEvt(UPDATE_OPENJDK_FAILED);
+                    return false;
                 } else if (latestCVEs.size() < CVES.size()) {
                     // Number of fetched CVEs is smaller than existing number of CVEs -> keep existing and retry later
                     logger.debug("Failed to update OpenJDK CVEs");
                     this.updateOpenJDKInProgress.set(false);
                     fireCveEvt(UPDATE_OPENJDK_FAILED);
+                    return false;
                 } else {
                     CVES.clear();
                     CVES.addAll(getLatestCves(DistributionType.OPENJDK));
@@ -133,6 +135,7 @@ public class CveScanner {
                     logger.debug("Successfully updated OpenJDK CVEs");
                     this.updateOpenJDKInProgress.set(false);
                     fireCveEvt(UPDATED_OPENJDK);
+                    return true;
                 }
             }
         } else {
@@ -142,6 +145,7 @@ public class CveScanner {
                 logger.debug("Failed to update OpenJDK CVEs");
                 this.updateOpenJDKInProgress.set(false);
                 fireCveEvt(UPDATE_OPENJDK_FAILED);
+                return false;
             } else {
                 CVES.clear();
                 CVES.addAll(getLatestCves(DistributionType.OPENJDK));
@@ -150,14 +154,15 @@ public class CveScanner {
                 logger.debug("Successfully updated OpenJDK CVEs");
                 this.updateOpenJDKInProgress.set(false);
                 fireCveEvt(UPDATED_OPENJDK);
+                return true;
             }
         }
     }
 
-    public final void updateGraalVMCves() {
-        updateGraalVMCves(false);
+    public final boolean updateGraalVMCves() {
+        return updateGraalVMCves(false);
     }
-    public final void updateGraalVMCves(final boolean force) {
+    public final boolean updateGraalVMCves(final boolean force) {
         // Update CVE's related to GraalVM
         logger.debug("Updating GraalVM CVEs");
         this.updateGraalVMInProgress.set(true);
@@ -171,9 +176,11 @@ public class CveScanner {
                     logger.debug("Failed loading GraalVM CVEs from file, file is empty");
                     cvedbGraalVM.delete();
                     fireCveEvt(UPDATE_GRAALVM_FAILED);
+                    return false;
                 } else {
                     logger.debug("Successfully loaded GraalVM CVEs from file");
                     fireCveEvt(UPDATED_GRAALVM);
+                    return true;
                 }
             } else {
                 final List<CVE> latestCVEs = getLatestCves(DistributionType.GRAALVM);
@@ -181,10 +188,12 @@ public class CveScanner {
                     logger.debug("Failed to update GraalVM CVEs");
                     this.updateGraalVMInProgress.set(false);
                     fireCveEvt(UPDATE_GRAALVM_FAILED);
+                    return false;
                 } else if (latestCVEs.size() < GRAALVM_CVES.size()) {
                     logger.debug("Failed to update GraalVM CVEs");
                     this.updateGraalVMInProgress.set(false);
                     fireCveEvt(UPDATE_GRAALVM_FAILED);
+                    return false;
                 } else {
                     GRAALVM_CVES.clear();
                     GRAALVM_CVES.addAll(getLatestCves(DistributionType.GRAALVM));
@@ -194,6 +203,7 @@ public class CveScanner {
                     logger.debug("Successfully updated GraalVM CVEs");
                     this.updateGraalVMInProgress.set(false);
                     fireCveEvt(UPDATED_GRAALVM);
+                    return true;
                 }
             }
         } else {
@@ -202,6 +212,7 @@ public class CveScanner {
                 logger.debug("Failed to update GraalVM CVEs");
                 this.updateGraalVMInProgress.set(false);
                 fireCveEvt(UPDATE_GRAALVM_FAILED);
+                return false;
             } else {
                 GRAALVM_CVES.clear();
                 GRAALVM_CVES.addAll(getLatestCves(DistributionType.GRAALVM));
@@ -210,14 +221,15 @@ public class CveScanner {
                 logger.debug("Successfully updated GraalVM CVEs");
                 this.updateGraalVMInProgress.set(false);
                 fireCveEvt(UPDATED_GRAALVM);
+                return true;
             }
         }
     }
 
-    public final void updateZuluCves() {
-        updateZuluCves(false);
+    public final boolean updateZuluCves() {
+        return updateZuluCves(false);
     }
-    public final void updateZuluCves(final boolean force) {
+    public final boolean updateZuluCves(final boolean force) {
         // Update CVE's related to Zulu
         logger.debug("Updating Zulu CVEs");
         this.updateZuluInProgress.set(true);
@@ -231,9 +243,11 @@ public class CveScanner {
                     logger.debug("Failed loading Zulu CVEs from file, file is empty");
                     cvedbZulu.delete();
                     fireCveEvt(UPDATE_ZULU_FAILED);
+                    return false;
                 } else {
                     logger.debug("Successfully loaded Zulu CVEs from file");
                     fireCveEvt(UPDATED_ZULU);
+                    return true;
                 }
             } else {
                 // Replace Zulu Versions with OpenJDK versions
@@ -243,10 +257,12 @@ public class CveScanner {
                     logger.debug("Failed to update Zulu CVEs");
                     this.updateZuluInProgress.set(false);
                     fireCveEvt(UPDATE_ZULU_FAILED);
+                    return false;
                 } else if (latestCves.size() < ZULU_CVES.size()) {
                     logger.debug("Failed to update Zulu CVEs");
                     this.updateZuluInProgress.set(false);
                     fireCveEvt(UPDATE_ZULU_FAILED);
+                    return false;
                 } else {
                     latestCves.forEach(cve -> {
                         List<VersionNumber> modifiedAffectedVersions = new ArrayList<>();
@@ -269,6 +285,7 @@ public class CveScanner {
                     logger.debug("Successfully updated Zulu CVEs");
                     this.updateZuluInProgress.set(false);
                     fireCveEvt(UPDATED_ZULU);
+                    return true;
                 }
             }
         } else {
@@ -279,6 +296,7 @@ public class CveScanner {
                 logger.debug("Failed to update Zulu CVEs");
                 this.updateZuluInProgress.set(false);
                 fireCveEvt(UPDATE_ZULU_FAILED);
+                return false;
             } else {
                 latestCves.forEach(cve -> {
                     List<VersionNumber> modifiedAffectedVersions = new ArrayList<>();
@@ -300,14 +318,15 @@ public class CveScanner {
                 logger.debug("Successfully updated Zulu CVEs");
                 this.updateZuluInProgress.set(false);
                 fireCveEvt(UPDATED_ZULU);
+                return true;
             }
         }
     }
 
-    public final void updateCorrettoCves() {
-        updateCorrettoCves(false);
+    public final boolean updateCorrettoCves() {
+        return updateCorrettoCves(false);
     }
-    public final void updateCorrettoCves(final boolean force) {
+    public final boolean updateCorrettoCves(final boolean force) {
         // Update CVE's related to Corretto
         logger.debug("Updating Corretto CVEs");
         this.updateCorrettInProgress.set(true);
@@ -321,9 +340,11 @@ public class CveScanner {
                     logger.debug("Failed loading Corretto CVEs from file, file is empty");
                     cvedbCorretto.delete();
                     fireCveEvt(UPDATE_CORRETTO_FAILED);
+                    return false;
                 } else {
                     logger.debug("Successfully updated Corretto CVEs");
                     fireCveEvt(UPDATED_CORRETTO);
+                    return true;
                 }
             } else {
                 final List<CVE> latestCves = getLatestCves(DistributionType.CORRETTO);
@@ -331,10 +352,12 @@ public class CveScanner {
                     logger.debug("Failed to update Corretto CVEs");
                     this.updateCorrettInProgress.set(false);
                     fireCveEvt(UPDATE_CORRETTO_FAILED);
+                    return false;
                 } else if (latestCves.size() < CORRETTO_CVES.size()) {
                     logger.debug("Failed to update Corretto CVEs");
                     this.updateCorrettInProgress.set(false);
                     fireCveEvt(UPDATE_CORRETTO_FAILED);
+                    return false;
                 } else {
                     CORRETTO_CVES.clear();
                     CORRETTO_CVES.addAll(latestCves);
@@ -344,6 +367,7 @@ public class CveScanner {
                     logger.debug("Successfully updated Corretto CVEs");
                     this.updateCorrettInProgress.set(false);
                     fireCveEvt(UPDATED_CORRETTO);
+                    return true;
                 }
             }
         } else {
@@ -352,6 +376,7 @@ public class CveScanner {
                 logger.debug("Failed to update Corretto CVEs");
                 this.updateCorrettInProgress.set(false);
                 fireCveEvt(UPDATE_CORRETTO_FAILED);
+                return false;
             } else {
                 CORRETTO_CVES.clear();
                 CORRETTO_CVES.addAll(latestCves);
@@ -360,6 +385,7 @@ public class CveScanner {
                 logger.debug("Successfully updated Corretto CVEs");
                 this.updateCorrettInProgress.set(false);
                 fireCveEvt(UPDATED_CORRETTO);
+                return true;
             }
         }
     }
@@ -401,6 +427,9 @@ public class CveScanner {
             case ZULU     -> cvesToCheck = getZuluCves();
             case GRAALVM  -> cvesToCheck = getGraalVMCves();
             default       -> cvesToCheck = getCves();
+        }
+        if (cvesToCheck.isEmpty()) {
+            logger.debug("No CVEs found for major version " + majorVersion + " in distribution " + distributionType.name());
         }
         cvesToCheck.forEach(cve -> cve.affectedVersions()
                                            .stream()
