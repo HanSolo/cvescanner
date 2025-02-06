@@ -57,16 +57,16 @@ public class CveScanner {
 
 
     public CveScanner() {
-        this("", 6);
+        this("", 24);
     }
     public CveScanner(final int updateInterval) {
         this("", updateInterval);
     }
     public CveScanner(final String nvdApiKey, final int updateInterval) {
-        if (updateInterval < 1) {
-            this.updateInterval = 1;
-        } else if (updateInterval > 24) {
-            this.updateInterval = 24;
+        if (updateInterval < MIN_UPDATE_INTERVAL_HOURS) {
+            this.updateInterval = MIN_UPDATE_INTERVAL_HOURS;
+        } else if (updateInterval > MAX_UPDATE_INTERVAL_HOURS) {
+            this.updateInterval = MAX_UPDATE_INTERVAL_HOURS;
         } else {
             this.updateInterval = updateInterval;
         }
@@ -261,7 +261,10 @@ public class CveScanner {
             case GRAALVM  -> cvesToCheck = getGraalVMCves();
             default       -> cvesToCheck = getCves();
         }
-        cvesToCheck.forEach(cve -> cve.affectedVersions().stream().filter(versionNumber -> versionNumber.getFeature().getAsInt() == majorVersion).forEach(versionNumber -> {
+        cvesToCheck.forEach(cve -> cve.affectedVersions()
+                                           .stream()
+                                           .filter(versionNumber -> versionNumber.getFeature().getAsInt() == majorVersion)
+                                           .forEach(versionNumber -> {
             if (!cvesPerVersionMap.containsKey(versionNumber)) { cvesPerVersionMap.put(versionNumber, new HashSet<>()); }
             cvesPerVersionMap.get(versionNumber).add(cve);
         }));
