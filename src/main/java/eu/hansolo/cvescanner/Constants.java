@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 
 
 public class Constants {
+    public static final String NVD_API_DELAY_MILLIS          = "120000"; // 2 Minutes
     public static final String NVD_URL_OPENJDK_V2            = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:oracle:openjdk:*:*:*:*:*:*:*:*&resultsPerPage=2000&noRejected";
     public static final String NVD_URL_JDK_V2                = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:oracle:jdk:*:*:*:*:*:*:*:*&resultsPerPage=2000&noRejected";
     public static final String NVD_URL_JRE_V2                = "https://services.nvd.nist.gov/rest/json/cves/2.0/?virtualMatchString=cpe:2.3:a:oracle:jre:*:*:*:*:*:*:*:*&resultsPerPage=2000&noRejected";
@@ -42,6 +43,7 @@ public class Constants {
     public static final String COMMA                         = ",";
     public static final int    MIN_UPDATE_INTERVAL_HOURS     = 1;
     public static final int    MAX_UPDATE_INTERVAL_HOURS     = 168; // 7 Days
+    public static final int    GET_REQUEST_TIMEOUT_SECONDS   = 120; // 2 Minutes
 
     public static final Pattern HREF_FILE_PATTERN            = Pattern.compile("href=\"([^\"]*(\\.zip|\\.msi|\\.pkg|\\.dmg|\\.tar\\.gz|\\.deb|\\.rpm|\\.cab|\\.7z))\"");
     public static final Matcher HREF_FILE_MATCHER            = HREF_FILE_PATTERN.matcher("");
@@ -50,7 +52,9 @@ public class Constants {
     // ******************** Enums *********************************************
     public enum DistributionType { OPENJDK, GRAALVM, ZULU, CORRETTO, ALL }
 
-    public enum CveEvtType { UPDATED_OPENJDK, UPDATED_GRAALVM, UPDATED_ZULU, UPDATED_CORRETTO, ERROR }
+    public enum CveEvtType { UPDATED_OPENJDK, UPDATED_GRAALVM, UPDATED_ZULU, UPDATED_CORRETTO,
+                             UPDATE_OPENJDK_FAILED, UPDATE_GRAALVM_FAILED, UPDATE_ZULU_FAILED, UPDATE_CORRETTO_FAILED,
+                             ERROR }
 
     public enum CVSS {
         CVSSV2("CVSS 2.0", "cvss_20", "cvssMetricV2"),

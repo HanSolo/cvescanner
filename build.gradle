@@ -25,6 +25,8 @@ dependencies {
     //implementation fileTree(dir: 'libs', include: '*.jar')
     implementation("com.google.code.gson:gson:2.11.0")
     implementation("eu.hansolo:jdktools:21.0.15")
+    implementation("org.slf4j:slf4j-api:2.0.16")
+    implementation("ch.qos.logback:logback-classic:1.5.15")
 }
 
 ext.moduleName = 'eu.hansolo.cvescanner'

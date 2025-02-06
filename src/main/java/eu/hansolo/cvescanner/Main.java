@@ -6,38 +6,48 @@ import eu.hansolo.jdktools.versioning.VersionNumber;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class Main {
+    private ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
-    public static void main(String[] args) {
-        AtomicBoolean running         = new AtomicBoolean(true);
-        AtomicBoolean openJdkUpdated  = new AtomicBoolean(false);
-        AtomicBoolean graalvmUPdated  = new AtomicBoolean(false);
-        AtomicBoolean zuluUpdated     = new AtomicBoolean(false);
-        AtomicBoolean correttoUpdated = new AtomicBoolean(false);
-        CveScanner    cveScanner      = new CveScanner(3);
+    private AtomicBoolean openJdkUpdated  = new AtomicBoolean(false);
+    private AtomicBoolean graalvmUPdated  = new AtomicBoolean(false);
+    private AtomicBoolean zuluUpdated     = new AtomicBoolean(false);
+    private AtomicBoolean correttoUpdated = new AtomicBoolean(false);
+    private CveScanner    cveScanner      = new CveScanner(3);
 
-        cveScanner.updateCorrettoCves(true);
-        System.exit(0);
-
+    public Main() {
         cveScanner.addCveEvtConsumer(e -> {
             switch(e.type()) {
-                case UPDATED_OPENJDK  -> openJdkUpdated.set(true);
-                case UPDATED_GRAALVM  -> graalvmUPdated.set(true);
-                case UPDATED_ZULU     -> zuluUpdated.set(true);
-                case UPDATED_CORRETTO -> correttoUpdated.set(true);
-                case ERROR            -> System.out.println("Error getting CVEs");
+                case UPDATED_OPENJDK        -> {
+                    System.out.println("OpenJDK updated");
+                    openJdkUpdated.set(true);
+                }
+                case UPDATED_GRAALVM        -> graalvmUPdated.set(true);
+                case UPDATED_ZULU           -> zuluUpdated.set(true);
+                case UPDATED_CORRETTO       -> correttoUpdated.set(true);
+                case UPDATE_OPENJDK_FAILED  -> {
+                    System.out.println("OpenJDK update failed -> retry in 5 min");
+                    executor.schedule(() -> { cveScanner.updateCves(); }, 300, TimeUnit.SECONDS);
+                }
+                case UPDATE_GRAALVM_FAILED  -> executor.schedule(() -> { cveScanner.updateGraalVMCves(); }, 300, TimeUnit.SECONDS);
+                case UPDATE_ZULU_FAILED     -> executor.schedule(() -> { cveScanner.updateZuluCves(); }, 300, TimeUnit.SECONDS);
+                case UPDATE_CORRETTO_FAILED -> executor.schedule(() -> { cveScanner.updateCorrettoCves(); }, 300, TimeUnit.SECONDS);
+                case ERROR                  -> System.out.println("Error getting CVEs");
             }
         });
 
         cveScanner.updateCves(false);
-        cveScanner.updateGraalVMCves(false);
-        cveScanner.updateZuluCves(false);
-        cveScanner.updateCorrettoCves(false);
+        //cveScanner.updateGraalVMCves(false);
+        //cveScanner.updateZuluCves(false);
+        //cveScanner.updateCorrettoCves(false);
 
-        while(!openJdkUpdated.get() && !graalvmUPdated.get() && !zuluUpdated.get()) {
+        while(!openJdkUpdated.get()) {
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {}
@@ -54,5 +64,10 @@ public class Main {
         List<CVE>     cvesFoundInZulu            = cveScanner.findZuluCvesForVersion(versionNumberToCheckInZulu);
         System.out.println("CVE's found for Zulu version: " + versionNumberToCheckInZulu.toString(OutputFormat.FULL_COMPRESSED, true, true));
         cvesFoundInZulu.forEach(cve -> System.out.println(cve));
+    }
+
+
+    public static void main(String[] args) {
+        new Main();
     }
 }
