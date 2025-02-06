@@ -28,17 +28,18 @@ public class Main {
                     System.out.println("OpenJDK updated");
                     openJdkUpdated.set(true);
                 }
-                case UPDATED_GRAALVM        -> graalvmUPdated.set(true);
-                case UPDATED_ZULU           -> zuluUpdated.set(true);
-                case UPDATED_CORRETTO       -> correttoUpdated.set(true);
-                case UPDATE_OPENJDK_FAILED  -> {
-                    System.out.println("OpenJDK update failed -> retry in 5 min");
-                    executor.schedule(() -> { cveScanner.updateCves(); }, 300, TimeUnit.SECONDS);
-                }
-                case UPDATE_GRAALVM_FAILED  -> executor.schedule(() -> { cveScanner.updateGraalVMCves(); }, 300, TimeUnit.SECONDS);
-                case UPDATE_ZULU_FAILED     -> executor.schedule(() -> { cveScanner.updateZuluCves(); }, 300, TimeUnit.SECONDS);
-                case UPDATE_CORRETTO_FAILED -> executor.schedule(() -> { cveScanner.updateCorrettoCves(); }, 300, TimeUnit.SECONDS);
-                case ERROR                  -> System.out.println("Error getting CVEs");
+                case UPDATED_GRAALVM         -> graalvmUPdated.set(true);
+                case UPDATED_ZULU            -> zuluUpdated.set(true);
+                case UPDATED_CORRETTO        -> correttoUpdated.set(true);
+                case UPDATE_OPENJDK_FAILED   -> System.out.println("OpenJDK CVE update failed");
+                case UPDATE_GRAALVM_FAILED   -> System.out.println("GraalVM CVE update failed");
+                case UPDATE_ZULU_FAILED      -> System.out.println("Zulu CVE update failed");
+                case UPDATE_CORRETTO_FAILED  -> System.out.println("Corretto CVE update failed");
+                case OPENJDK_CVE_FILE_EMPTY  -> executor.schedule(() -> { cveScanner.updateCves(); }, 300, TimeUnit.SECONDS);
+                case GRAALVM_CVE_FILE_EMPTY  -> executor.schedule(() -> { cveScanner.updateGraalVMCves(); }, 300, TimeUnit.SECONDS);
+                case ZULU_CVE_FILE_EMPTY     -> executor.schedule(() -> { cveScanner.updateZuluCves(); }, 300, TimeUnit.SECONDS);
+                case CORRETTO_CVE_FILE_EMPTY -> executor.schedule(() -> { cveScanner.updateCorrettoCves(); }, 300, TimeUnit.SECONDS);
+                case ERROR                   -> System.out.println("Error getting CVEs");
             }
         });
 

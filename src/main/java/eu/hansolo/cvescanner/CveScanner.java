@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -53,6 +54,10 @@ public class CveScanner {
     private final  CveEvt               UPDATE_GRAALVM_FAILED       = new CveEvt(CveEvtType.UPDATE_GRAALVM_FAILED);
     private final  CveEvt               UPDATE_ZULU_FAILED          = new CveEvt(CveEvtType.UPDATE_ZULU_FAILED);
     private final  CveEvt               UPDATE_CORRETTO_FAILED      = new CveEvt(CveEvtType.UPDATE_CORRETTO_FAILED);
+    private final  CveEvt               OPEN_JDK_CVE_FILE_EMPTY     = new CveEvt(CveEvtType.OPENJDK_CVE_FILE_EMPTY);
+    private final  CveEvt               GRAALVM_CVE_FILE_EMPTY      = new CveEvt(CveEvtType.GRAALVM_CVE_FILE_EMPTY);
+    private final  CveEvt               ZULU_CVE_FILE_EMPTY         = new CveEvt(CveEvtType.ZULU_CVE_FILE_EMPTY);
+    private final  CveEvt               CORRETTO_CVE_FILE_EMPTY     = new CveEvt(CveEvtType.CORRETTO_CVE_FILE_EMPTY);
     private final  CveEvt               UPDATE_OPENJDK_IN_PROGRESS  = new CveEvt(CveEvtType.UPDATE_OPENJDK_IN_PROGRESS);
     private final  CveEvt               UPDATE_GRAALVM_IN_PROGRESS  = new CveEvt(CveEvtType.UPDATE_GRAALVM_IN_PROGRESS);
     private final  CveEvt               UPDATE_ZULU_IN_PROGRESS     = new CveEvt(CveEvtType.UPDATE_ZULU_IN_PROGRESS);
@@ -113,7 +118,7 @@ public class CveScanner {
                 if (CVES.isEmpty()) {
                     logger.debug("Failed loading OpenJDK CVEs from file, file is empty");
                     cvedbOpenJDK.delete();
-                    fireCveEvt(UPDATE_OPENJDK_FAILED);
+                    fireCveEvt(OPEN_JDK_CVE_FILE_EMPTY);
                     return false;
                 } else {
                     logger.debug("Successfully loaded OpenJDK CVEs from file");
@@ -135,8 +140,22 @@ public class CveScanner {
                     fireCveEvt(UPDATE_OPENJDK_FAILED);
                     return false;
                 } else {
-                    CVES.clear();
-                    CVES.addAll(getLatestCves(DistributionType.OPENJDK));
+                    // Upsert CVES
+                    latestCVEs.forEach(cve -> {
+                        if (CVES.contains(cve)) {
+                            final Optional<CVE> optCve = CVES.stream().filter(existingCve -> existingCve.equals(cve)).findFirst();
+                            if (optCve.isPresent()) {
+                                final CVE existingCve = optCve.get();
+                                for (VersionNumber versionNumber : cve.affectedVersions()) {
+                                    if (!existingCve.affectedVersions().contains(versionNumber)) {
+                                        existingCve.affectedVersions().add(versionNumber);
+                                    }
+                                }
+                            }
+                        } else {
+                            CVES.add(cve);
+                        }
+                    });
                     cvedbOpenJDK.delete();
                     final StringBuilder jsonBuilder = new StringBuilder().append(CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
                     saveToJsonFile(CVE_DB_FILENAME, jsonBuilder.toString());
@@ -150,13 +169,27 @@ public class CveScanner {
             final List<CVE> latestCVEs = getLatestCves(DistributionType.OPENJDK);
             if (latestCVEs.isEmpty()) {
                 // List of fetched CVEs is empty -> keep existing and retry later
-                logger.debug("Failed to update OpenJDK CVEs");
+                logger.debug("Failed to fetch OpenJDK CVEs");
                 this.updateOpenJDKInProgress.set(false);
-                fireCveEvt(UPDATE_OPENJDK_FAILED);
+                fireCveEvt(OPEN_JDK_CVE_FILE_EMPTY);
                 return false;
             } else {
-                CVES.clear();
-                CVES.addAll(getLatestCves(DistributionType.OPENJDK));
+                // Upsert CVES
+                latestCVEs.forEach(cve -> {
+                    if (CVES.contains(cve)) {
+                        final Optional<CVE> optCve = CVES.stream().filter(existingCve -> existingCve.equals(cve)).findFirst();
+                        if (optCve.isPresent()) {
+                            final CVE existingCve = optCve.get();
+                            for (VersionNumber versionNumber : cve.affectedVersions()) {
+                                if (!existingCve.affectedVersions().contains(versionNumber)) {
+                                    existingCve.affectedVersions().add(versionNumber);
+                                }
+                            }
+                        }
+                    } else {
+                        CVES.add(cve);
+                    }
+                });
                 final StringBuilder jsonBuilder = new StringBuilder().append(CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
                 saveToJsonFile(CVE_DB_FILENAME, jsonBuilder.toString());
                 logger.debug("Successfully updated OpenJDK CVEs");
@@ -187,7 +220,7 @@ public class CveScanner {
                 if (GRAALVM_CVES.isEmpty()) {
                     logger.debug("Failed loading GraalVM CVEs from file, file is empty");
                     cvedbGraalVM.delete();
-                    fireCveEvt(UPDATE_GRAALVM_FAILED);
+                    fireCveEvt(GRAALVM_CVE_FILE_EMPTY);
                     return false;
                 } else {
                     logger.debug("Successfully loaded GraalVM CVEs from file");
@@ -207,8 +240,22 @@ public class CveScanner {
                     fireCveEvt(UPDATE_GRAALVM_FAILED);
                     return false;
                 } else {
-                    GRAALVM_CVES.clear();
-                    GRAALVM_CVES.addAll(getLatestCves(DistributionType.GRAALVM));
+                    // Upsert GRAALVM_CVES
+                    latestCVEs.forEach(cve -> {
+                        if (GRAALVM_CVES.contains(cve)) {
+                            final Optional<CVE> optCve = GRAALVM_CVES.stream().filter(existingCve -> existingCve.equals(cve)).findFirst();
+                            if (optCve.isPresent()) {
+                                final CVE existingCve = optCve.get();
+                                for (VersionNumber versionNumber : cve.affectedVersions()) {
+                                    if (!existingCve.affectedVersions().contains(versionNumber)) {
+                                        existingCve.affectedVersions().add(versionNumber);
+                                    }
+                                }
+                            }
+                        } else {
+                            GRAALVM_CVES.add(cve);
+                        }
+                    });
                     cvedbGraalVM.delete();
                     final StringBuilder jsonBuilder = new StringBuilder().append(GRAALVM_CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
                     saveToJsonFile(CVE_DB_GRAALVM_FILENAME, jsonBuilder.toString());
@@ -221,13 +268,26 @@ public class CveScanner {
         } else {
             final List<CVE> latestCVEs = getLatestCves(DistributionType.GRAALVM);
             if (latestCVEs.isEmpty()) {
-                logger.debug("Failed to update GraalVM CVEs");
+                logger.debug("Failed to fetch GraalVM CVEs");
                 this.updateGraalVMInProgress.set(false);
-                fireCveEvt(UPDATE_GRAALVM_FAILED);
+                fireCveEvt(GRAALVM_CVE_FILE_EMPTY);
                 return false;
             } else {
-                GRAALVM_CVES.clear();
-                GRAALVM_CVES.addAll(getLatestCves(DistributionType.GRAALVM));
+                latestCVEs.forEach(cve -> {
+                    if (GRAALVM_CVES.contains(cve)) {
+                        final Optional<CVE> optCve = GRAALVM_CVES.stream().filter(existingCve -> existingCve.equals(cve)).findFirst();
+                        if (optCve.isPresent()) {
+                            final CVE existingCve = optCve.get();
+                            for (VersionNumber versionNumber : cve.affectedVersions()) {
+                                if (!existingCve.affectedVersions().contains(versionNumber)) {
+                                    existingCve.affectedVersions().add(versionNumber);
+                                }
+                            }
+                        }
+                    } else {
+                        GRAALVM_CVES.add(cve);
+                    }
+                });
                 final StringBuilder jsonBuilder = new StringBuilder().append(GRAALVM_CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
                 saveToJsonFile(CVE_DB_GRAALVM_FILENAME, jsonBuilder.toString());
                 logger.debug("Successfully updated GraalVM CVEs");
@@ -258,7 +318,7 @@ public class CveScanner {
                 if (ZULU_CVES.isEmpty()) {
                     logger.debug("Failed loading Zulu CVEs from file, file is empty");
                     cvedbZulu.delete();
-                    fireCveEvt(UPDATE_ZULU_FAILED);
+                    fireCveEvt(ZULU_CVE_FILE_EMPTY);
                     return false;
                 } else {
                     logger.debug("Successfully loaded Zulu CVEs from file");
@@ -293,8 +353,22 @@ public class CveScanner {
                         cve.affectedVersions().clear();
                         cve.affectedVersions().addAll(modifiedAffectedVersions);
                     });
-                    ZULU_CVES.clear();
-                    ZULU_CVES.addAll(latestCves);
+                    // Upsert ZULU_CVES
+                    latestCves.forEach(cve -> {
+                        if (ZULU_CVES.contains(cve)) {
+                            final Optional<CVE> optCve = ZULU_CVES.stream().filter(existingCve -> existingCve.equals(cve)).findFirst();
+                            if (optCve.isPresent()) {
+                                final CVE existingCve = optCve.get();
+                                for (VersionNumber versionNumber : cve.affectedVersions()) {
+                                    if (!existingCve.affectedVersions().contains(versionNumber)) {
+                                        existingCve.affectedVersions().add(versionNumber);
+                                    }
+                                }
+                            }
+                        } else {
+                            ZULU_CVES.add(cve);
+                        }
+                    });
                     cvedbZulu.delete();
                     final StringBuilder jsonBuilder = new StringBuilder().append(ZULU_CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
                     saveToJsonFile(CVE_DB_ZULU_FILENAME, jsonBuilder.toString());
@@ -309,9 +383,9 @@ public class CveScanner {
             final Map<VersionNumber, VersionNumber> zuluVersions = Helper.getZuluVersions();
             final List<CVE>                         latestCves   = getLatestCves(DistributionType.ZULU);
             if (latestCves.isEmpty()) {
-                logger.debug("Failed to update Zulu CVEs");
+                logger.debug("Failed to fetch Zulu CVEs");
                 this.updateZuluInProgress.set(false);
-                fireCveEvt(UPDATE_ZULU_FAILED);
+                fireCveEvt(ZULU_CVE_FILE_EMPTY);
                 return false;
             } else {
                 latestCves.forEach(cve -> {
@@ -327,8 +401,22 @@ public class CveScanner {
                     cve.affectedVersions().clear();
                     cve.affectedVersions().addAll(modifiedAffectedVersions);
                 });
-                ZULU_CVES.clear();
-                ZULU_CVES.addAll(latestCves);
+                // Upsert ZULU_CVES
+                latestCves.forEach(cve -> {
+                    if (ZULU_CVES.contains(cve)) {
+                        final Optional<CVE> optCve = ZULU_CVES.stream().filter(existingCve -> existingCve.equals(cve)).findFirst();
+                        if (optCve.isPresent()) {
+                            final CVE existingCve = optCve.get();
+                            for (VersionNumber versionNumber : cve.affectedVersions()) {
+                                if (!existingCve.affectedVersions().contains(versionNumber)) {
+                                    existingCve.affectedVersions().add(versionNumber);
+                                }
+                            }
+                        }
+                    } else {
+                        ZULU_CVES.add(cve);
+                    }
+                });
                 final StringBuilder jsonBuilder = new StringBuilder().append(ZULU_CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
                 saveToJsonFile(CVE_DB_ZULU_FILENAME, jsonBuilder.toString());
                 logger.debug("Successfully updated Zulu CVEs");
@@ -359,7 +447,7 @@ public class CveScanner {
                 if (CORRETTO_CVES.isEmpty()) {
                     logger.debug("Failed loading Corretto CVEs from file, file is empty");
                     cvedbCorretto.delete();
-                    fireCveEvt(UPDATE_CORRETTO_FAILED);
+                    fireCveEvt(CORRETTO_CVE_FILE_EMPTY);
                     return false;
                 } else {
                     logger.debug("Successfully updated Corretto CVEs");
@@ -379,8 +467,22 @@ public class CveScanner {
                     fireCveEvt(UPDATE_CORRETTO_FAILED);
                     return false;
                 } else {
-                    CORRETTO_CVES.clear();
-                    CORRETTO_CVES.addAll(latestCves);
+                    // Upsert CORRETTO_CVES
+                    latestCves.forEach(cve -> {
+                        if (CORRETTO_CVES.contains(cve)) {
+                            final Optional<CVE> optCve = CORRETTO_CVES.stream().filter(existingCve -> existingCve.equals(cve)).findFirst();
+                            if (optCve.isPresent()) {
+                                final CVE existingCve = optCve.get();
+                                for (VersionNumber versionNumber : cve.affectedVersions()) {
+                                    if (!existingCve.affectedVersions().contains(versionNumber)) {
+                                        existingCve.affectedVersions().add(versionNumber);
+                                    }
+                                }
+                            }
+                        } else {
+                            CORRETTO_CVES.add(cve);
+                        }
+                    });
                     cvedbCorretto.delete();
                     final StringBuilder jsonBuilder = new StringBuilder().append(CORRETTO_CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
                     saveToJsonFile(CVE_DB_CORRETTO_FILENAME, jsonBuilder.toString());
@@ -391,15 +493,29 @@ public class CveScanner {
                 }
             }
         } else {
-            final List<CVE> latestCves   = getLatestCves(DistributionType.CORRETTO);
+            final List<CVE> latestCves = getLatestCves(DistributionType.CORRETTO);
             if (latestCves.isEmpty()) {
-                logger.debug("Failed to update Corretto CVEs");
+                logger.debug("Failed to fetch Corretto CVEs");
                 this.updateCorrettoInProgress.set(false);
-                fireCveEvt(UPDATE_CORRETTO_FAILED);
+                fireCveEvt(CORRETTO_CVE_FILE_EMPTY);
                 return false;
             } else {
-                CORRETTO_CVES.clear();
-                CORRETTO_CVES.addAll(latestCves);
+                // Upsert CORRETTO_CVES
+                latestCves.forEach(cve -> {
+                    if (CORRETTO_CVES.contains(cve)) {
+                        final Optional<CVE> optCve = CORRETTO_CVES.stream().filter(existingCve -> existingCve.equals(cve)).findFirst();
+                        if (optCve.isPresent()) {
+                            final CVE existingCve = optCve.get();
+                            for (VersionNumber versionNumber : cve.affectedVersions()) {
+                                if (!existingCve.affectedVersions().contains(versionNumber)) {
+                                    existingCve.affectedVersions().add(versionNumber);
+                                }
+                            }
+                        }
+                    } else {
+                        CORRETTO_CVES.add(cve);
+                    }
+                });
                 final StringBuilder jsonBuilder = new StringBuilder().append(ZULU_CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
                 saveToJsonFile(CVE_DB_CORRETTO_FILENAME, jsonBuilder.toString());
                 logger.debug("Successfully updated Corretto CVEs");
