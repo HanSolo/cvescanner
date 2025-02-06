@@ -579,9 +579,12 @@ public class CveScanner {
         final String               nvdApiKey = getNvdApiKey().isEmpty() ? PropertyManager.INSTANCE.getString(PropertyManager.PROPERTY_NVD_API_KEY) : getNvdApiKey();
         final List<CVE>            cvesFound = new ArrayList<>();
         final HttpResponse<String> response  = get(url, Map.of("apiKey", nvdApiKey,
-                                                               //"delay", NVD_API_DELAY_MILLIS,
+                                                               "delay", NVD_API_DELAY_MILLIS,
                                                                "Accept", "application/json"));
-        if (null == response) { return cvesFound; }
+        if (null == response) {
+            logger.warn("Couldn't get response from NVD API");
+            return cvesFound;
+        }
         final String bodyText = response.body();
         final Gson   gson     = new GsonBuilder().setLenient().create();
 
@@ -746,7 +749,7 @@ public class CveScanner {
                 }
             }
         } catch (Exception e) {
-            System.out.println(e);
+            logger.warn("Error parsing CVEs: {}", e);
         }
         return cvesFound;
     }

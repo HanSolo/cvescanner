@@ -19,7 +19,7 @@ public class Main {
     private AtomicBoolean graalvmUPdated  = new AtomicBoolean(false);
     private AtomicBoolean zuluUpdated     = new AtomicBoolean(false);
     private AtomicBoolean correttoUpdated = new AtomicBoolean(false);
-    private CveScanner    cveScanner      = new CveScanner(3);
+    private CveScanner    cveScanner      = new CveScanner(24);
 
     public Main() {
         cveScanner.addCveEvtConsumer(e -> {
@@ -58,12 +58,14 @@ public class Main {
         System.out.println("CVE's found for OpenJDK version: " + versionNumberToCheck.toString(OutputFormat.FULL_COMPRESSED, true, true));
         cvesFound.forEach(cve -> System.out.println(cve));
 
+        /*
         System.out.println();
 
         VersionNumber versionNumberToCheckInZulu = new VersionNumber(17, 0, 4, 0, 8);
         List<CVE>     cvesFoundInZulu            = cveScanner.findZuluCvesForVersion(versionNumberToCheckInZulu);
         System.out.println("CVE's found for Zulu version: " + versionNumberToCheckInZulu.toString(OutputFormat.FULL_COMPRESSED, true, true));
         cvesFoundInZulu.forEach(cve -> System.out.println(cve));
+        */
     }
 
 
