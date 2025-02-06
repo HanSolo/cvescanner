@@ -43,30 +43,34 @@ import static eu.hansolo.cvescanner.Constants.*;
 
 
 public class CveScanner {
-    private static Logger                          logger                  = LoggerFactory.getLogger(CveScanner.class);
-    private final  Properties                      PROPERTIES              = PropertyManager.INSTANCE.getProperties();
-    private final  CveEvt                          UPDATED_OPENJDK         = new CveEvt(CveEvtType.UPDATED_OPENJDK);
-    private final  CveEvt                          UPDATED_GRAALVM         = new CveEvt(CveEvtType.UPDATED_GRAALVM);
-    private final  CveEvt                          UPDATED_ZULU            = new CveEvt(CveEvtType.UPDATED_ZULU);
-    private final  CveEvt                          UPDATED_CORRETTO        = new CveEvt(CveEvtType.UPDATED_CORRETTO);
-    private final  CveEvt                          UPDATE_OPENJDK_FAILED   = new CveEvt(CveEvtType.UPDATE_OPENJDK_FAILED);
-    private final  CveEvt                          UPDATE_GRAALVM_FAILED   = new CveEvt(CveEvtType.UPDATE_GRAALVM_FAILED);
-    private final  CveEvt                          UPDATE_ZULU_FAILED      = new CveEvt(CveEvtType.UPDATE_ZULU_FAILED);
-    private final  CveEvt                          UPDATE_CORRETTO_FAILED  = new CveEvt(CveEvtType.UPDATE_CORRETTO_FAILED);
-    private final  CveEvt                          ERROR                   = new CveEvt(CveEvtType.ERROR);
-    private final  List<CVE>                       CVES                    = new CopyOnWriteArrayList<>();
-    private final  List<CVE>                       GRAALVM_CVES            = new CopyOnWriteArrayList<>();
-    private final  List<CVE>                       ZULU_CVES               = new CopyOnWriteArrayList<>();
-    private final  List<CVE>                       CORRETTO_CVES           = new CopyOnWriteArrayList<>();
-    private final  List<CveEvtConsumer>            consumers               = new CopyOnWriteArrayList<>();
-    private final  AtomicBoolean                   updateOpenJDKInProgress = new AtomicBoolean(false);
-    private final  AtomicBoolean                   updateGraalVMInProgress = new AtomicBoolean(false);
-    private final  AtomicBoolean                   updateZuluInProgress    = new AtomicBoolean(false);
-    private final  AtomicBoolean                   updateCorrettInProgress = new AtomicBoolean(false);
-    private final  int                             updateInterval;
-    private        HttpClient                      httpClient;
-    private        HttpClient                      httpClientAsync;
-    private        String                          nvdApiKey;
+    private static Logger               logger                      = LoggerFactory.getLogger(CveScanner.class);
+    private final  Properties           PROPERTIES                  = PropertyManager.INSTANCE.getProperties();
+    private final  CveEvt               UPDATED_OPENJDK             = new CveEvt(CveEvtType.UPDATED_OPENJDK);
+    private final  CveEvt               UPDATED_GRAALVM             = new CveEvt(CveEvtType.UPDATED_GRAALVM);
+    private final  CveEvt               UPDATED_ZULU                = new CveEvt(CveEvtType.UPDATED_ZULU);
+    private final  CveEvt               UPDATED_CORRETTO            = new CveEvt(CveEvtType.UPDATED_CORRETTO);
+    private final  CveEvt               UPDATE_OPENJDK_FAILED       = new CveEvt(CveEvtType.UPDATE_OPENJDK_FAILED);
+    private final  CveEvt               UPDATE_GRAALVM_FAILED       = new CveEvt(CveEvtType.UPDATE_GRAALVM_FAILED);
+    private final  CveEvt               UPDATE_ZULU_FAILED          = new CveEvt(CveEvtType.UPDATE_ZULU_FAILED);
+    private final  CveEvt               UPDATE_CORRETTO_FAILED      = new CveEvt(CveEvtType.UPDATE_CORRETTO_FAILED);
+    private final  CveEvt               UPDATE_OPENJDK_IN_PROGRESS  = new CveEvt(CveEvtType.UPDATE_OPENJDK_IN_PROGRESS);
+    private final  CveEvt               UPDATE_GRAALVM_IN_PROGRESS  = new CveEvt(CveEvtType.UPDATE_GRAALVM_IN_PROGRESS);
+    private final  CveEvt               UPDATE_ZULU_IN_PROGRESS     = new CveEvt(CveEvtType.UPDATE_ZULU_IN_PROGRESS);
+    private final  CveEvt               UPDATE_CORRETTO_IN_PROGRESS = new CveEvt(CveEvtType.UPDATE_CORRETTO_IN_PROGRESS);
+    private final  CveEvt               ERROR                       = new CveEvt(CveEvtType.ERROR);
+    private final  List<CVE>            CVES                        = new CopyOnWriteArrayList<>();
+    private final  List<CVE>            GRAALVM_CVES                = new CopyOnWriteArrayList<>();
+    private final  List<CVE>            ZULU_CVES                   = new CopyOnWriteArrayList<>();
+    private final  List<CVE>            CORRETTO_CVES               = new CopyOnWriteArrayList<>();
+    private final  List<CveEvtConsumer> consumers                   = new CopyOnWriteArrayList<>();
+    private final  AtomicBoolean        updateOpenJDKInProgress     = new AtomicBoolean(false);
+    private final  AtomicBoolean        updateGraalVMInProgress     = new AtomicBoolean(false);
+    private final  AtomicBoolean        updateZuluInProgress        = new AtomicBoolean(false);
+    private final  AtomicBoolean        updateCorrettoInProgress    = new AtomicBoolean(false);
+    private final  int                  updateInterval;
+    private        HttpClient           httpClient;
+    private        HttpClient           httpClientAsync;
+    private        String               nvdApiKey;
 
 
     public CveScanner() {
@@ -93,6 +97,10 @@ public class CveScanner {
 
     public final boolean updateCves() { return updateCves(false); }
     public final boolean updateCves(final boolean force) {
+        if (this.updateOpenJDKInProgress.get()) {
+            fireCveEvt(UPDATE_OPENJDK_IN_PROGRESS);
+            return false;
+        }
         // Update CVE's related to OpenJDK
         logger.debug("Updating OpenJDK CVEs");
         this.updateOpenJDKInProgress.set(true);
@@ -163,6 +171,10 @@ public class CveScanner {
         return updateGraalVMCves(false);
     }
     public final boolean updateGraalVMCves(final boolean force) {
+        if (this.updateGraalVMInProgress.get()) {
+            fireCveEvt(UPDATE_GRAALVM_IN_PROGRESS);
+            return false;
+        }
         // Update CVE's related to GraalVM
         logger.debug("Updating GraalVM CVEs");
         this.updateGraalVMInProgress.set(true);
@@ -230,6 +242,10 @@ public class CveScanner {
         return updateZuluCves(false);
     }
     public final boolean updateZuluCves(final boolean force) {
+        if (this.updateZuluInProgress.get()) {
+            fireCveEvt(UPDATE_ZULU_IN_PROGRESS);
+            return false;
+        }
         // Update CVE's related to Zulu
         logger.debug("Updating Zulu CVEs");
         this.updateZuluInProgress.set(true);
@@ -327,14 +343,18 @@ public class CveScanner {
         return updateCorrettoCves(false);
     }
     public final boolean updateCorrettoCves(final boolean force) {
+        if (this.updateCorrettoInProgress.get()) {
+            fireCveEvt(UPDATE_CORRETTO_IN_PROGRESS);
+            return false;
+        }
         // Update CVE's related to Corretto
         logger.debug("Updating Corretto CVEs");
-        this.updateCorrettInProgress.set(true);
+        this.updateCorrettoInProgress.set(true);
         final File cvedbCorretto = new File(CVE_DB_CORRETTO_FILENAME);
         if (cvedbCorretto.exists()) {
             final Instant now = Instant.now();
             if (!force && Duration.between(Instant.ofEpochMilli(cvedbCorretto.lastModified()), now).toHours() < updateInterval) {
-                this.updateCorrettInProgress.set(false);
+                this.updateCorrettoInProgress.set(false);
                 loadCorrettoCvesFromFile();
                 if (CORRETTO_CVES.isEmpty()) {
                     logger.debug("Failed loading Corretto CVEs from file, file is empty");
@@ -350,12 +370,12 @@ public class CveScanner {
                 final List<CVE> latestCves = getLatestCves(DistributionType.CORRETTO);
                 if (latestCves.isEmpty()) {
                     logger.debug("Failed to update Corretto CVEs");
-                    this.updateCorrettInProgress.set(false);
+                    this.updateCorrettoInProgress.set(false);
                     fireCveEvt(UPDATE_CORRETTO_FAILED);
                     return false;
                 } else if (latestCves.size() < CORRETTO_CVES.size()) {
                     logger.debug("Failed to update Corretto CVEs");
-                    this.updateCorrettInProgress.set(false);
+                    this.updateCorrettoInProgress.set(false);
                     fireCveEvt(UPDATE_CORRETTO_FAILED);
                     return false;
                 } else {
@@ -365,7 +385,7 @@ public class CveScanner {
                     final StringBuilder jsonBuilder = new StringBuilder().append(CORRETTO_CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
                     saveToJsonFile(CVE_DB_CORRETTO_FILENAME, jsonBuilder.toString());
                     logger.debug("Successfully updated Corretto CVEs");
-                    this.updateCorrettInProgress.set(false);
+                    this.updateCorrettoInProgress.set(false);
                     fireCveEvt(UPDATED_CORRETTO);
                     return true;
                 }
@@ -374,7 +394,7 @@ public class CveScanner {
             final List<CVE> latestCves   = getLatestCves(DistributionType.CORRETTO);
             if (latestCves.isEmpty()) {
                 logger.debug("Failed to update Corretto CVEs");
-                this.updateCorrettInProgress.set(false);
+                this.updateCorrettoInProgress.set(false);
                 fireCveEvt(UPDATE_CORRETTO_FAILED);
                 return false;
             } else {
@@ -383,7 +403,7 @@ public class CveScanner {
                 final StringBuilder jsonBuilder = new StringBuilder().append(ZULU_CVES.stream().map(cve -> cve.toString()).collect(Collectors.joining(COMMA, SQUARE_BRACKET_OPEN, SQUARE_BRACKET_CLOSE)));
                 saveToJsonFile(CVE_DB_CORRETTO_FILENAME, jsonBuilder.toString());
                 logger.debug("Successfully updated Corretto CVEs");
-                this.updateCorrettInProgress.set(false);
+                this.updateCorrettoInProgress.set(false);
                 fireCveEvt(UPDATED_CORRETTO);
                 return true;
             }
@@ -443,7 +463,7 @@ public class CveScanner {
 
     public final boolean isOpenJDKUpdateInProgress() { return this.updateOpenJDKInProgress.get(); }
     public final boolean isGraalVMUpdateInProgress() { return this.updateGraalVMInProgress.get(); }
-    public final boolean isCorrettoUpdateInProgress() { return this.updateCorrettInProgress.get(); }
+    public final boolean isCorrettoUpdateInProgress() { return this.updateCorrettoInProgress.get(); }
     public final boolean isZuluUpdateInProgress() { return this.updateZuluInProgress.get(); }
 
     private List<CVE> getLatestCves(final Constants.DistributionType distributionType) {
@@ -559,7 +579,7 @@ public class CveScanner {
         final String               nvdApiKey = getNvdApiKey().isEmpty() ? PropertyManager.INSTANCE.getString(PropertyManager.PROPERTY_NVD_API_KEY) : getNvdApiKey();
         final List<CVE>            cvesFound = new ArrayList<>();
         final HttpResponse<String> response  = get(url, Map.of("apiKey", nvdApiKey,
-                                                               "delay", NVD_API_DELAY_MILLIS,
+                                                               //"delay", NVD_API_DELAY_MILLIS,
                                                                "Accept", "application/json"));
         if (null == response) { return cvesFound; }
         final String bodyText = response.body();
