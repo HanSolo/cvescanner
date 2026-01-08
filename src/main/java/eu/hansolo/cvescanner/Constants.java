@@ -9,6 +9,16 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static eu.hansolo.jdktools.Constants.COMMA;
+import static eu.hansolo.jdktools.Constants.CURLY_BRACKET_CLOSE;
+import static eu.hansolo.jdktools.Constants.CURLY_BRACKET_OPEN;
+import static eu.hansolo.jdktools.Constants.QUOTES;
+import static eu.hansolo.jdktools.Constants.QUOTES_COLON;
+import static eu.hansolo.jdktools.Constants.QUOTES_COLON_QUOTES;
+import static eu.hansolo.jdktools.Constants.QUOTES_COMMA;
+import static eu.hansolo.jdktools.Constants.SQUARE_BRACKET_CLOSE;
+import static eu.hansolo.jdktools.Constants.SQUARE_BRACKET_OPEN;
+
 
 public class Constants {
     public static final String NVD_API_DELAY_MILLIS          = "120000"; // 2 Minutes
@@ -32,15 +42,6 @@ public class Constants {
     public static final String CVE_DB_CORRETTO_FILENAME      = HOME_FOLDER + "corretto_cvedb.json";
     public static final String ZULU_VERSIONS_HOME_FILENAME   = HOME_FOLDER + "zulu_versions.txt";
     public static final String ZULU_VERSIONS_FILENAME        = "zulu_versions.txt";
-    public static final String SQUARE_BRACKET_OPEN           = "[";
-    public static final String SQUARE_BRACKET_CLOSE          = "]";
-    public static final String CURLY_BRACKET_OPEN            = "{";
-    public static final String CURLY_BRACKET_CLOSE           = "}";
-    public static final String QUOTES                        = "\"";
-    public static final String COLON                         = ":";
-    public static final String QUOTES_COLON                  = "\":";
-    public static final String QUOTES_COLON_QUOTES           = "\":\"";
-    public static final String COMMA                         = ",";
     public static final int    MIN_UPDATE_INTERVAL_HOURS     = 1;
     public static final int    MAX_UPDATE_INTERVAL_HOURS     = 168; // 7 Days
     public static final int    GET_REQUEST_TIMEOUT_SECONDS   = 120; // 2 Minutes
@@ -189,8 +190,8 @@ public class Constants {
 
         @Override public String toString() {
             return new StringBuilder().append(CURLY_BRACKET_OPEN)
-                                      .append(QUOTES).append("name").append(QUOTES_COLON_QUOTES).append(name()).append(QUOTES).append(COMMA)
-                                      .append(QUOTES).append("ui_string").append(QUOTES_COLON_QUOTES).append(uiString).append(QUOTES).append(COMMA)
+                                      .append(QUOTES).append("name").append(QUOTES_COLON_QUOTES).append(name()).append(QUOTES_COMMA)
+                                      .append(QUOTES).append("ui_string").append(QUOTES_COLON_QUOTES).append(uiString).append(QUOTES_COMMA)
                                       .append(QUOTES).append("api_string").append(QUOTES_COLON_QUOTES).append(apiString).append(QUOTES)
                                       .append(CURLY_BRACKET_CLOSE)
                                       .toString();
@@ -264,14 +265,14 @@ public class Constants {
         @Override public String toString() {
             final StringBuilder msgBuilder = new StringBuilder();
             msgBuilder.append(CURLY_BRACKET_OPEN)
-                      .append(QUOTES).append(FIELD_ID).append(QUOTES_COLON_QUOTES).append(id).append(QUOTES).append(COMMA)
+                      .append(QUOTES).append(FIELD_ID).append(QUOTES_COLON_QUOTES).append(id).append(QUOTES_COMMA)
                       .append(QUOTES).append(FIELD_SCORE).append(QUOTES_COLON).append(score).append(COMMA)
-                      .append(QUOTES).append(FIELD_CVSS).append(QUOTES_COLON_QUOTES).append(cvss.apiString).append(QUOTES).append(COMMA)
-                      .append(QUOTES).append(FIELD_SEVERITY).append(QUOTES_COLON_QUOTES).append(severity.getApiString()).append(QUOTES).append(COMMA)
-                      .append(QUOTES).append(FIELD_URL).append(QUOTES_COLON_QUOTES).append(url()).append(QUOTES).append(COMMA)
+                      .append(QUOTES).append(FIELD_CVSS).append(QUOTES_COLON_QUOTES).append(cvss.apiString).append(QUOTES_COMMA)
+                      .append(QUOTES).append(FIELD_SEVERITY).append(QUOTES_COLON_QUOTES).append(severity.getApiString()).append(QUOTES_COMMA)
+                      .append(QUOTES).append(FIELD_URL).append(QUOTES_COLON_QUOTES).append(url()).append(QUOTES_COMMA)
                       .append(QUOTES).append(FIELD_AFFECTED_VERSIONS).append(QUOTES_COLON)
                       .append(SQUARE_BRACKET_OPEN);
-            affectedVersions.forEach(versionNumber -> msgBuilder.append(QUOTES).append(versionNumber).append(QUOTES).append(COMMA));
+            affectedVersions.forEach(versionNumber -> msgBuilder.append(QUOTES).append(versionNumber).append(QUOTES_COMMA));
             msgBuilder.setLength(msgBuilder.length() - 1);
             msgBuilder.append(SQUARE_BRACKET_CLOSE)
                       .append(CURLY_BRACKET_CLOSE);

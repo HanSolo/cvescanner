@@ -41,6 +41,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static eu.hansolo.cvescanner.Constants.*;
+import static eu.hansolo.jdktools.Constants.COMMA;
+import static eu.hansolo.jdktools.Constants.SQUARE_BRACKET_CLOSE;
+import static eu.hansolo.jdktools.Constants.SQUARE_BRACKET_OPEN;
 
 
 public class CveScanner {

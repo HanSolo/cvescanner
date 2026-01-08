@@ -45,7 +45,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static eu.hansolo.cvescanner.Constants.CDN_URL;
-import static eu.hansolo.cvescanner.Constants.COMMA;
+import static eu.hansolo.jdktools.Constants.COMMA;
 import static eu.hansolo.cvescanner.Constants.HOME_FOLDER;
 import static eu.hansolo.cvescanner.Constants.HREF_FILE_MATCHER;
 import static eu.hansolo.cvescanner.Constants.ZULU_VERSIONS_FILENAME;
