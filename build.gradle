@@ -2,40 +2,40 @@ import java.text.SimpleDateFormat
 
 plugins {
     id 'java-library'
-    id 'net.nemerosa.versioning' version '3.1.0'
+    id 'net.nemerosa.versioning'      version '3.1.0'
+    id 'com.vanniktech.maven.publish' version '0.35.0'
 }
 
-normalization {
-    runtimeClasspath{
-        ignore('/META-INF/MANIFEST')
-    }
+description = 'CVEScanner is a tool to get cves from NVD related to OpenJDK and GraalVM'
+
+Date buildTimeAndDate = new Date()
+ext {
+    moduleName      = 'eu.hansolo.cvescanner'
+    buildDate       = new SimpleDateFormat('yyyy-MM-dd').format(buildTimeAndDate)
+    buildTime       = new SimpleDateFormat('HH:mm:ss.SSSZ').format(buildTimeAndDate)
+    ciOssrhUsername = System.getenv('OSSRH_USERNAME')
+    ciOssrhPassword = System.getenv('OSSRH_PASSWORD')
+    ciGHUser        = System.getenv('GH_USER')
+    ciGHToken       = System.getenv('GH_TOKEN')
+    gpgkey          = System.getenv("GPG_PRIVATE_KEY")
+    gpgpassphrase   = System.getenv("PASSPHRASE")
 }
 
 repositories {
     mavenCentral()
 }
 
-Date buildTimeAndDate = new Date()
-ext {
-    buildDate = new SimpleDateFormat('yyyy-MM-dd').format(buildTimeAndDate)
-    buildTime = new SimpleDateFormat('HH:mm:ss.SSSZ').format(buildTimeAndDate)
-}
-
 dependencies {
-    //implementation fileTree(dir: 'libs', include: '*.jar')
     implementation("com.google.code.gson:gson:2.13.2")
     implementation("eu.hansolo:jdktools:21.0.31")
     implementation("org.slf4j:slf4j-api:2.0.16")
     implementation("ch.qos.logback:logback-classic:1.5.15")
 }
 
-ext.moduleName = 'eu.hansolo.cvescanner'
-description    = 'CVEScanner is a tool to get cves from NVD related to OpenJDK and GraalVM'
-
 jar {
     from {
-        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-        configurations.runtimeClasspath.collect {  it.isDirectory() ? it : zipTree(it)  }
+        //duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        //configurations.runtimeClasspath.collect {  it.isDirectory() ? it : zipTree(it)  }
     } {
         exclude "META-INF/*.SF"
         exclude "META-INF/*.DSA"
@@ -57,13 +57,66 @@ jar {
                 'Bundle-Description'    : description,
                 'Bundle-Version'        : project.version,
                 'Bundle-SymbolicName'   : 'eu.hansolo.cvescanner',
-                'Class-Path'            : '${project.name}-${project.version}.jar'
+                'Class-Path'            : configurations.runtimeClasspath.files.collect { it.getName() }.join(' ')
         )
     }
 }
 
-// start the from gradle
-task Main(type: JavaExec) {
-    mainClass = "eu.hansolo.cvescanner.Main"
-    classpath = sourceSets.main.runtimeClasspath
+if (JavaVersion.current().isJava8Compatible()) {
+    allprojects {
+        tasks.withType(Javadoc) {
+            options.addStringOption('Xdoclint:none', '-quiet')
+        }
+    }
+}
+
+// create one jar for the javadoc
+tasks.register('javadocJar', Jar) {
+    dependsOn tasks.javadoc
+    archiveClassifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+// create one jar for the source files
+tasks.register('sourcesJar', Jar) {
+    dependsOn tasks.classes
+    archiveClassifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives jar
+    archives javadocJar
+    archives sourcesJar
+}
+
+mavenPublishing {
+    coordinates("eu.hansolo", "cvescanner", "${version}")
+
+    pom {
+        name = "CVEScanner"
+        description = "CVEScanner is a tool to get cves from NVD related to OpenJDK and GraalVM"
+        inceptionYear = "2025"
+        url = "https://github.com/HanSolo/cvescanner/wiki"
+        licenses {
+            license {
+                name = "The Apache License, Version 2.0"
+                url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+                distribution = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+            }
+        }
+        developers {
+            developer {
+                id = "HanSolo"
+                name = "Gerrit Grunwald"
+                email = "han.solo@mac.com"
+                url = "https://github.com/HanSolo/"
+            }
+        }
+        scm {
+            url = "https://github.com/HanSolo/cvescanner/"
+            connection = "scm:git:git://github.com/HanSolo/cvescanner.git"
+            developerConnection = "scm:git:ssh://git@github.com/HanSolo/cvescanner.git"
+        }
+    }
 }
